@@ -56,9 +56,11 @@ export function PaymentsClientPage() {
   const onSearchSubmit = (data: SearchFormData) => {
     setIsLoading(true);
     setFoundRequest(null);
+    const searchInput = data.referenceNumber.trim().toLowerCase();
     const request = (documentRequests || []).find(
       (req) =>
-        req.referenceNumber === data.referenceNumber && (req.status === "Paid" || req.status === "Released")
+        req.referenceNumber.toLowerCase() === searchInput &&
+        (req.status === "Paid" || req.status === "Released")
     );
 
     if (request) {
