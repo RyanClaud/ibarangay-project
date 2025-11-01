@@ -25,6 +25,8 @@ import { Input } from '@/components/ui/input';
 import type { User, Role } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 const userSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -43,6 +45,7 @@ interface AddUserDialogProps {
 const ROLES: Role[] = ["Admin", "Barangay Captain", "Secretary", "Treasurer"];
 
 export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
     defaultValues: {
@@ -53,6 +56,7 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
   });
 
   const onSubmit = async (data: UserFormData) => {
+    setIsSubmitting(true);
     try {
         await onAddUser(data);
         toast({
@@ -67,6 +71,8 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
             description: error.message || "An unexpected error occurred.",
             variant: "destructive"
         });
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -131,9 +137,12 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
             />
             <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
                 <DialogClose asChild>
-                    <Button type="button" variant="ghost">Cancel</Button>
+                    <Button type="button" variant="ghost" disabled={isSubmitting}>Cancel</Button>
                 </DialogClose>
-                <Button type="submit">Save User</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="animate-spin" />}
+                  {isSubmitting ? 'Saving...' : 'Save User'}
+                </Button>
             </DialogFooter>
           </form>
         </Form>

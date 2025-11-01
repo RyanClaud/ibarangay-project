@@ -23,12 +23,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Loader2 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import type { Resident } from '@/lib/types';
 import { toast } from '@/hooks/use-toast';
+import { useState } from 'react';
 
 const residentSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -50,6 +51,7 @@ interface AddResidentDialogProps {
 }
 
 export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResidentDialogProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<ResidentFormData>({
     resolver: zodResolver(residentSchema),
     defaultValues: {
@@ -63,6 +65,7 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
   });
 
   const onSubmit = async (data: ResidentFormData) => {
+    setIsSubmitting(true);
     try {
       await onAddResident({
           ...data,
@@ -79,6 +82,8 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
         description: error.message || "An unexpected error occurred.",
         variant: "destructive"
       });
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -200,9 +205,12 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
             </div>
             <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
                 <DialogClose asChild>
-                    <Button type="button" variant="ghost">Cancel</Button>
+                    <Button type="button" variant="ghost" disabled={isSubmitting}>Cancel</Button>
                 </DialogClose>
-                <Button type="submit">Save Resident</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="animate-spin" />}
+                  {isSubmitting ? 'Saving...' : 'Save Resident'}
+                </Button>
             </DialogFooter>
           </form>
         </Form>

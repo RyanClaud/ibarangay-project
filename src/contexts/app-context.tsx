@@ -170,6 +170,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
     
     const defaultPassword = 'password';
+    const adminUser = auth.currentUser; // Keep track of the currently logged-in admin
 
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, newResidentData.email, defaultPassword);
@@ -205,23 +206,22 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         await batch.commit();
 
         // After creating the user, sign them out and sign the admin back in.
-        if (auth.currentUser?.uid === authUser.uid) {
+        if (auth.currentUser?.uid === authUser.uid && adminUser) {
             await signOut(auth);
-            await reSignInAdmin();
+            if(adminCredentials) {
+              await signInWithEmailAndPassword(auth, adminCredentials.email, adminCredentials.password);
+            }
         }
 
     } catch (error: any) {
+      // If the admin was signed out by the process, sign them back in
+      if (adminCredentials && auth.currentUser?.email !== adminCredentials.email) {
+          await reSignInAdmin();
+      }
+      
       console.error("Error creating resident:", error);
       if (error.code === 'auth/email-already-in-use') {
-          // If the creation failed, re-sign in the admin immediately.
-          if (auth.currentUser?.email !== adminCredentials?.email) {
-            await reSignInAdmin();
-          }
           throw new Error("An account for this email already exists.");
-      }
-      // Re-sign-in admin on other errors too
-      if (auth.currentUser?.email !== adminCredentials?.email) {
-        await reSignInAdmin();
       }
       throw new Error("Failed to create resident account.");
     }
@@ -343,6 +343,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const addUser = async (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
+    const adminUser = auth.currentUser;
     
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
@@ -357,22 +358,22 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         await setDoc(userRef, newUser, { merge: true });
 
         // After creating the user, sign them out and sign the admin back in.
-        if (auth.currentUser?.uid === authUser.uid) {
+        if (auth.currentUser?.uid === authUser.uid && adminUser) {
             await signOut(auth);
-            await reSignInAdmin();
+            if(adminCredentials) {
+              await signInWithEmailAndPassword(auth, adminCredentials.email, adminCredentials.password);
+            }
         }
 
     } catch (error: any) {
-        if (error.code === 'auth/email-already-in-use') {
-            if (auth.currentUser?.email !== adminCredentials?.email) {
-              await reSignInAdmin();
-            }
-            throw new Error("An account for this email already exists.");
-        }
-        if (auth.currentUser?.email !== adminCredentials?.email) {
+        if (adminCredentials && auth.currentUser?.email !== adminCredentials.email) {
           await reSignInAdmin();
         }
-        throw error;
+
+        if (error.code === 'auth/email-already-in-use') {
+            throw new Error("An account for this email already exists.");
+        }
+        throw new Error("Failed to create user account.");
     }
   };
 
