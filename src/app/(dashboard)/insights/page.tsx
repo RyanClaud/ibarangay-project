@@ -14,6 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { generateInsightsAction, generateCustomReportAction } from '@/app/actions/ai-actions';
 import { Loader2, Sparkles } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAppContext } from '@/contexts/app-context';
 
 const customReportSchema = z.object({
   reportTitle: z.string().min(5, 'Title must be at least 5 characters long.'),
@@ -27,6 +28,7 @@ export default function InsightsPage() {
   const [reportSummary, setReportSummary] = useState<string | null>(null);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const { residents, documentRequests } = useAppContext();
 
   const form = useForm<z.infer<typeof customReportSchema>>({
     resolver: zodResolver(customReportSchema),
@@ -41,8 +43,16 @@ export default function InsightsPage() {
   const handleGenerateInsights = async () => {
     setIsGeneratingInsights(true);
     setInsights(null);
+    if (!residents || !documentRequests) {
+      toast({ title: 'Data not loaded yet. Please try again in a moment.', variant: 'destructive'});
+      setIsGeneratingInsights(false);
+      return;
+    }
+
     try {
-      const result = await generateInsightsAction();
+      const residentData = JSON.stringify(residents);
+      const documentRequestData = JSON.stringify(documentRequests);
+      const result = await generateInsightsAction(residentData, documentRequestData);
       setInsights(result.insights);
       toast({ title: 'Insights Generated Successfully' });
     } catch (error) {

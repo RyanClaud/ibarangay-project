@@ -2,13 +2,10 @@
 
 import { generateInsights } from '@/ai/flows/generate-insights-from-barangay-data';
 import { generateCustomReport } from '@/ai/flows/generate-custom-reports-with-ai';
-import { residents, documentRequests } from '@/lib/data';
 import type { GenerateCustomReportInput } from '@/ai/flows/generate-custom-reports-with-ai';
 
 // This server action calls the AI flow to generate insights from barangay data.
-export async function generateInsightsAction() {
-  const residentData = JSON.stringify(residents);
-  const documentRequestData = JSON.stringify(documentRequests);
+export async function generateInsightsAction(residentData: string, documentRequestData: string) {
 
   const result = await generateInsights({
     residentData,
