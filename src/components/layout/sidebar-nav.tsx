@@ -82,7 +82,7 @@ export function SidebarNav() {
           <Logo className="size-10 bg-sidebar-primary text-sidebar-primary-foreground" />
           <div className="flex flex-col">
             <h2 className="font-headline text-lg font-semibold text-sidebar-foreground">iBarangay</h2>
-            <p className="text-xs text-sidebar-foreground/80">Barangay Mgt.</p>
+            <p className="text-xs text-sidebar-foreground/80">Barangay Mina de Oro</p>
           </div>
         </div>
       </SidebarHeader>
