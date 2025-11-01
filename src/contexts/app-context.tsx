@@ -13,7 +13,7 @@ import {
   initiateEmailSignIn,
   initiateSignOut,
 } from '@/firebase';
-import { collection, doc, where, query, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, doc, where, query, getDocs, writeBatch, getDoc } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from 'firebase/auth';
 
@@ -63,7 +63,8 @@ const seedInitialUsers = async (firestore: any, auth: any) => {
         id: authUser.uid, // This is critical
       };
        // Note: We are not using the non-blocking version here because seeding needs to be complete.
-      await setDoc(userDocRef, userData);
+       // Using setDoc directly inside a try/catch during an initialization script is acceptable.
+       await setDoc(userDocRef, userData);
       console.log(`Created Firestore document for ${user.email}`);
 
     } catch (error: any) {
@@ -133,31 +134,25 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
     // If the credential is NOT an email address, assume it's a Resident User ID
     if (!credential.includes('@')) {
-      const q = query(collection(firestore, "residents"), where("userId", "==", credential));
-      const querySnapshot = await getDocs(q);
-      
-      if (!querySnapshot.empty) {
-        const residentDoc = querySnapshot.docs[0].data() as Resident;
-        // The resident's email is now stored on the resident document.
-        // But for this app, we'll assume the email is derived for login purposes
-        // IMPORTANT: In a real-world app, you'd store the resident's actual email
-        // and use that for login. Here we derive it as we did during creation.
-        // This is a simplification. The user's UID is the Resident ID.
-        const userDocRef = doc(firestore, "users", residentDoc.userId);
+      // This is still not ideal as it requires a read before login,
+      // but we will try to fetch the user doc directly.
+      // A better approach is a Cloud Function for credential lookup.
+      try {
+        const userDocRef = doc(firestore, "users", credential);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
             emailToSignIn = userDoc.data().email;
         } else {
             throw new Error("No user account associated with that Resident ID.");
         }
-      } else {
-        // It's not a resident ID, so we assume it's an email for a staff member
-        emailToSignIn = credential;
+      } catch (e) {
+          console.error("Failed to lookup resident by ID", e);
+          // Fallback to trying to sign in with the credential as-is, which will likely fail
+          // but prevents the app from crashing.
+          emailToSignIn = credential;
       }
     }
 
-    // Directly attempt to sign in. The onAuthStateChanged listener will handle the app state change.
-    // Errors will be caught by the component calling this function.
     initiateEmailSignIn(auth, emailToSignIn, password);
   };
 
@@ -311,3 +306,5 @@ export function useAppContext() {
   }
   return context;
 }
+
+    
