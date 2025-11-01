@@ -46,16 +46,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const addResident = (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl'>) => {
-    const newIdNumber = Math.max(...residents.map(r => parseInt(r.id.replace('RES', ''))), 0) + 1;
-    const newUserIdNumber = Math.max(...residents.map(r => parseInt(r.userId.replace('R-', ''))), 1000) + 1;
+    const newResIdNumber = Math.max(...residents.map(r => parseInt(r.id.replace('RES', ''))), 0) + 1;
+    const newResUserIdNumber = Math.max(...residents.map(r => parseInt(r.userId.replace('R-', ''))), 1000) + 1;
 
     const newResident: Resident = {
       ...newResidentData,
-      id: `RES${String(newIdNumber).padStart(3, '0')}`,
-      userId: `R-${newUserIdNumber}`,
-      avatarUrl: `https://picsum.photos/seed/${newIdNumber}/100/100`,
+      id: `RES${String(newResIdNumber).padStart(3, '0')}`,
+      userId: `R-${newResUserIdNumber}`,
+      avatarUrl: `https://picsum.photos/seed/${newResIdNumber}/100/100`,
     };
+
+    const newUserIdNumber = Math.max(...users.map(u => parseInt(u.id.replace('USR', ''))), 0) + 1;
+    const newUser: User = {
+      id: `USR${String(newUserIdNumber).padStart(3, '0')}`,
+      name: `${newResident.firstName} ${newResident.lastName}`,
+      email: `${newResident.lastName.toLowerCase()}${newResIdNumber}@ibarangay.com`,
+      avatarUrl: newResident.avatarUrl,
+      role: 'Resident',
+      residentId: newResident.id,
+    };
+    
     setResidents(prev => [newResident, ...prev]);
+    setUsers(prev => [newUser, ...prev]);
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
