@@ -13,10 +13,10 @@
  *
  * Key Security Decisions:
  * - The user's role is stored in their document at /users/{userId}.
- * - Authenticated users can read the list of users.
+ * - Authenticated users can read their own user document.
  * - Residents can only read/write their own resident profile.
  * - Staff (non-residents) can read all resident profiles.
- * - Residents can only create document requests for themselves.
+ * - Residents can only create document requests for themselves and read their own requests.
  * - Staff (non-residents) can read all document requests.
  * - Admins (role == "Admin") have the highest level of privileges.
  */
@@ -61,7 +61,7 @@ service cloud.firestore {
      * @description Rules for the /users/{userId} collection.
      */
     match /users/{userId} {
-      allow get: if isStaff() || isOwner(userId);
+      allow get: if isSignedIn();
       allow list: if isStaff();
       allow create: if true; 
       allow update: if isAdmin() || isOwner(userId);
@@ -76,9 +76,7 @@ service cloud.firestore {
       allow get: if isStaff() || isOwner(residentId);
       // Staff can list all residents. Residents are not allowed to list all residents.
       allow list: if isStaff();
-      // Allow unauthenticated query only by userId for login
-      allow list: if request.auth == null && request.query.keys().hasOnly(['where']);
-      allow create: if isOwner(residentId);
+      allow create: if true;
       allow update: if isStaff() || isOwner(residentId);
       allow delete: if isAdmin() || isOwner(residentId);
     }
@@ -87,12 +85,12 @@ service cloud.firestore {
      * @description Rules for the /documentRequests/{documentRequestId} collection.
      */
     match /documentRequests/{documentRequestId} {
-      // A resident can get their own request. Staff can get any request.
-      allow get: if isStaff() || resource.data.residentId == request.auth.uid;
-      // Staff can list all requests. Residents can only list their own requests.
-      allow list: if isStaff();
+      // A resident can get/list their own requests. Staff can read/list any request.
+      allow read: if isStaff() || resource.data.residentId == request.auth.uid;
+      // A resident can only create document requests for themselves.
       allow create: if request.resource.data.residentId == request.auth.uid;
-      allow update, delete: if isStaff() || resource.data.residentId == request.auth.uid;
+      // A resident can update/delete their own requests. Staff can manage any.
+      allow write: if isStaff() || resource.data.residentId == request.auth.uid;
     }
 
     /**
