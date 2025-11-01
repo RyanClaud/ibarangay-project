@@ -34,8 +34,8 @@ const residentSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   address: z.string().min(1, 'Address is required'),
-  birthdate: z.date({
-    required_error: 'A date of birth is required.',
+  birthdate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'Invalid date format. Please use YYYY-MM-DD.',
   }),
   householdNumber: z.string().min(1, 'Household number is required'),
 });
@@ -55,6 +55,7 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
       firstName: '',
       lastName: '',
       address: '',
+      birthdate: '',
       householdNumber: '',
     },
   });
@@ -62,7 +63,6 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
   const onSubmit = (data: ResidentFormData) => {
     onAddResident({
         ...data,
-        birthdate: format(data.birthdate, 'yyyy-MM-dd'),
     });
     toast({
         title: 'Resident Added',
@@ -131,34 +131,30 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
                 render={({ field }) => (
                     <FormItem className="flex flex-col">
                     <FormLabel>Date of Birth</FormLabel>
-                    <Popover>
-                        <PopoverTrigger asChild>
+                     <div className="relative">
                         <FormControl>
-                            <Button
-                            variant={'outline'}
-                            className={cn(
-                                'w-full pl-3 text-left font-normal',
-                                !field.value && 'text-muted-foreground'
-                            )}
-                            >
-                            {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
+                            <Input placeholder="YYYY-MM-DD" {...field} />
                         </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                            mode="single"
-                            captionLayout="dropdown-nav"
-                            fromYear={new Date().getFullYear() - 100}
-                            toYear={new Date().getFullYear()}
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
-                            initialFocus
-                        />
-                        </PopoverContent>
-                    </Popover>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="ghost" size="icon" className="absolute right-0 top-0 h-full">
+                                    <CalendarIcon className="h-4 w-4 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    captionLayout="dropdown-nav"
+                                    fromYear={new Date().getFullYear() - 100}
+                                    toYear={new Date().getFullYear()}
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                                    disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
                     <FormMessage />
                     </FormItem>
                 )}
