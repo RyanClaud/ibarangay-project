@@ -21,11 +21,10 @@ import {
   Settings,
   LogOut,
   FileSignature,
+  Loader2
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
-import type { Role } from '@/lib/types';
 import { useAppContext } from '@/contexts/app-context';
-import { getLoggedInUser } from '@/lib/data';
 
 const navItems = {
   Admin: [
@@ -63,15 +62,12 @@ export function SidebarNav() {
   const router = useRouter();
   const { currentUser, logout } = useAppContext();
   
-  // Default to a mock user if not logged in, to prevent UI crashes.
-  // In a real app, unauthenticated users would be redirected.
-  const user = currentUser || getLoggedInUser('Admin'); 
-  const userNavItems = navItems[user.role] || navItems.Resident;
-
   const handleLogout = () => {
     logout();
     router.push('/login');
   };
+
+  const userNavItems = currentUser ? navItems[currentUser.role] : [];
 
   return (
     <>
@@ -87,24 +83,30 @@ export function SidebarNav() {
 
       <SidebarContent>
         <SidebarMenu>
-          {userNavItems.map((item) => (
-            <SidebarMenuItem key={item.label}>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === item.href}
-                className="font-body"
-                tooltip={{
-                  children: item.label,
-                  className: 'bg-primary text-primary-foreground',
-                }}
-              >
-                <Link href={item.href}>
-                  <item.icon />
-                  <span>{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {!currentUser ? (
+            <div className="flex justify-center p-4">
+              <Loader2 className="animate-spin text-sidebar-foreground" />
+            </div>
+          ) : (
+            userNavItems.map((item) => (
+              <SidebarMenuItem key={item.label}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === item.href}
+                  className="font-body"
+                  tooltip={{
+                    children: item.label,
+                    className: 'bg-primary text-primary-foreground',
+                  }}
+                >
+                  <Link href={item.href}>
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))
+          )}
         </SidebarMenu>
       </SidebarContent>
 
@@ -115,6 +117,7 @@ export function SidebarNav() {
           <SidebarMenuItem>
             <SidebarMenuButton 
               onClick={handleLogout}
+              disabled={!currentUser}
               tooltip={{
                 children: 'Logout',
                 className: 'bg-primary text-primary-foreground',

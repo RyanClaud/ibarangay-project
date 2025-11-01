@@ -6,27 +6,24 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { RequestsChart } from "@/components/dashboard/requests-chart";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { CircleDollarSign, FileText, Users, CheckCircle, Loader2 } from "lucide-react";
-import type { User, DocumentRequest } from "@/lib/types";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useAppContext } from "@/contexts/app-context";
-import { useRouter } from "next/navigation";
 import { getLoggedInUser } from "@/lib/data";
 
 export default function DashboardPage() {
-  const { currentUser, residents, documentRequests } = useAppContext();
-  const router = useRouter();
+  const { currentUser, residents, documentRequests, login } = useAppContext();
+  const [initialized, setInitialized] = useState(false);
 
-  // In a real app with proper auth, this redirect would be more robust.
   useEffect(() => {
+    // On initial load, if there's no user, simulate a default login.
+    // In a real app, this would check for a session token.
     if (!currentUser) {
-      // To prevent flicker and handle page reloads, we'll rely on the default user for now.
-      // A full solution would involve storing auth state in localStorage.
-      // router.push('/login');
+        login("admin@ibarangay.com"); // Log in as admin by default
     }
-  }, [currentUser, router]);
+    setInitialized(true);
+  }, []);
 
-  // Fallback to a default user to prevent crashes on reload or if context is not ready.
-  const user = currentUser || getLoggedInUser("Admin"); 
+  const user = currentUser;
 
   const residentInfo = useMemo(() => {
     if (user?.role === 'Resident' && user.residentId) {
@@ -42,7 +39,7 @@ export default function DashboardPage() {
     return [];
   }, [user, documentRequests]);
 
-  if (!currentUser) {
+  if (!initialized || !user) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
