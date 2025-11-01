@@ -59,6 +59,7 @@ export function PaymentsClientPage() {
     const searchInput = data.referenceNumber.trim().toLowerCase();
     const request = (documentRequests || []).find(
       (req) =>
+        req.referenceNumber && // Defensive check
         req.referenceNumber.toLowerCase() === searchInput &&
         (req.status === "Paid" || req.status === "Released")
     );
