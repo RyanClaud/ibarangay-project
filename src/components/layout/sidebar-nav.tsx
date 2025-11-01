@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { useAppContext } from '@/contexts/app-context';
+import { useEffect, useState } from 'react';
 
 const navItems = {
   Admin: [
@@ -61,6 +62,11 @@ export function SidebarNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { currentUser, logout } = useAppContext();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
   
   const handleLogout = () => {
     logout();
@@ -83,7 +89,7 @@ export function SidebarNav() {
 
       <SidebarContent>
         <SidebarMenu>
-          {!currentUser ? (
+          {!isClient || !currentUser ? (
             <div className="flex justify-center p-4">
               <Loader2 className="animate-spin text-sidebar-foreground" />
             </div>
