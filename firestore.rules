@@ -79,7 +79,7 @@ service cloud.firestore {
     match /residents/{residentId} {
       // A resident can get their own profile. Staff can get any profile.
       allow get: if isStaff() || isOwner(residentId);
-      // Staff can list all residents. Unauthenticated users can query for a single resident for login.
+      // Staff can list all residents. Unauthenticated users can query for a single resident (for login).
       allow list: if isStaff() || (request.auth == null && request.query.limit == 1);
       allow create: if true;
       allow update: if isStaff() || isOwner(residentId);
@@ -90,11 +90,13 @@ service cloud.firestore {
      * @description Rules for the /documentRequests/{documentRequestId} collection.
      */
     match /documentRequests/{documentRequestId} {
-      // A resident can get/list their own requests. Staff can read/list any request.
-      allow read: if isStaff() || (resource.data.residentId == request.auth.uid);
+      // Staff can list all requests. Residents can't (they query with a where clause).
+      allow list: if isStaff();
+      // Staff can get any request. A resident can get their own.
+      allow get: if isStaff() || (resource.data.residentId == request.auth.uid);
       // A resident can only create document requests for themselves.
       allow create: if request.resource.data.residentId == request.auth.uid;
-      // A resident can update/delete their own requests. Staff can manage any.
+      // Staff can manage any request. A resident can update/delete their own.
       allow write: if isStaff() || (resource.data.residentId == request.auth.uid);
     }
 
@@ -124,5 +126,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
