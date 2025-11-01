@@ -31,11 +31,11 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="barangayName">Barangay Name</Label>
-                <Input id="barangayName" defaultValue="Barangay 1, District 1" />
+                <Input id="barangayName" defaultValue="Barangay Mina De Oro" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="address">Address</Label>
-                <Input id="address" defaultValue="City of Manila, Philippines" />
+                <Input id="address" defaultValue="Bongabong, Oriental Mindoro, Philippines" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="logo">Barangay Seal/Logo</Label>

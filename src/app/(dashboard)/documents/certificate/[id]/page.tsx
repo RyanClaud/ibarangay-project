@@ -52,8 +52,8 @@ export default function CertificatePage() {
                     <Logo className="size-20" />
                     <div>
                         <p className="text-lg">Republic of the Philippines</p>
-                        <p className="text-lg">City of Manila</p>
-                        <h1 className="text-3xl font-bold">Barangay 1, District 1</h1>
+                        <p className="text-lg">Bongabong, Oriental Mindoro</p>
+                        <h1 className="text-3xl font-bold">Barangay Mina De Oro</h1>
                     </div>
                     <div className="w-20"></div>
                 </div>
@@ -66,7 +66,7 @@ export default function CertificatePage() {
                 <p className="indent-8">
                     This is to certify that <span className="font-bold uppercase">{resident.firstName} {resident.lastName}</span>,
                     <span className="font-bold">{getAge(resident.birthdate)}</span> years old, is a bonafide resident of 
-                    <span className="font-bold"> {resident.address}, City of Manila.</span>
+                    <span className="font-bold"> {resident.address}, Bongabong, Oriental Mindoro.</span>
                 </p>
                 
                 {request.documentType === 'Barangay Clearance' && (
@@ -106,7 +106,7 @@ export default function CertificatePage() {
                 )}
 
                 <p className="indent-8">
-                    Issued this <span className="font-bold">{new Date().toLocaleDateString('en-US', { day: 'numeric' })}</span> day of <span className="font-bold">{new Date().toLocaleDateString('en-US', { month: 'long' })}</span>, <span className="font-bold">{new Date().getFullYear()}</span> at the Office of the Punong Barangay, Barangay 1, District 1, City of Manila, Philippines.
+                    Issued this <span className="font-bold">{new Date().toLocaleDateString('en-US', { day: 'numeric' })}</span> day of <span className="font-bold">{new Date().toLocaleDateString('en-US', { month: 'long' })}</span>, <span className="font-bold">{new Date().getFullYear()}</span> at the Office of the Punong Barangay, Barangay Mina De Oro, Bongabong, Oriental Mindoro, Philippines.
                 </p>
             </main>
 

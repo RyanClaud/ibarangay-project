@@ -118,7 +118,7 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
                 <FormItem>
                   <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="123 Rizal St, Brgy. 1" {...field} />
+                    <Input placeholder="Purok 1, Brgy. Mina De Oro" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
