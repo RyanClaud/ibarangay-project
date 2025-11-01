@@ -12,7 +12,7 @@ import {
   initiateSignOut,
   useDoc,
 } from '@/firebase';
-import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs, limit } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
@@ -118,7 +118,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         // If it fails with "invalid-credential", it might be a resident User ID.
         if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email') {
             console.log("Initial email sign-in failed, trying resident User ID lookup...");
-            const q = query(collection(firestore, "residents"), where("userId", "==", credential));
+            const q = query(collection(firestore, "residents"), where("userId", "==", credential), limit(1));
             const querySnapshot = await getDocs(q);
 
             if (!querySnapshot.empty) {
@@ -309,3 +309,5 @@ export function useAppContext() {
   }
   return context;
 }
+
+    
