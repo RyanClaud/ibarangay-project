@@ -217,10 +217,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
-    if (!firestore || !documentRequests || !currentUser?.id) {
+    if (!firestore || !currentUser?.residentId || !currentUser.name) {
        toast({
           title: 'Error',
-          description: 'Could not identify the current user. Please log in again.',
+          description: 'Could not identify the current resident. Please log in again.',
           variant: 'destructive',
        });
        return;
@@ -230,7 +230,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const newIdNumber = (documentRequests?.length ?? 0) + 1;
     const newRequest: DocumentRequest = {
         ...request,
-        residentId: currentUser.id,
+        residentId: currentUser.residentId,
         residentName: currentUser.name,
         id: newId,
         requestDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
