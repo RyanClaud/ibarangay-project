@@ -45,17 +45,26 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const usersQuery = useMemoFirebase(() => (firestore && currentUser ? collection(firestore, 'users') : null), [firestore, currentUser]);
   const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
 
-  const residentsQuery = useMemoFirebase(() => (firestore && currentUser ? collection(firestore, 'residents') : null), [firestore, currentUser]);
+  const residentsQuery = useMemoFirebase(() => {
+    if (!firestore || !currentUser) return null;
+    // Staff can see all residents
+    if (currentUser.role !== 'Resident') {
+      return collection(firestore, 'residents');
+    }
+    // Residents don't need to see the full list of other residents.
+    // We can fetch their own profile specifically if needed, but not with useCollection on the whole set.
+    return query(collection(firestore, 'residents'), where('id', '==', currentUser.id));
+  }, [firestore, currentUser]);
   const { data: residents, isLoading: isResidentsLoading } = useCollection<Resident>(residentsQuery);
   
   const documentRequestsQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
-    if (currentUser.role === 'Resident') {
-      // For residents, only fetch their own document requests
-      return query(collection(firestore, 'documentRequests'), where('residentId', '==', currentUser.id));
+    if (currentUser.role !== 'Resident') {
+      // For staff, fetch all document requests
+      return collection(firestore, 'documentRequests');
     }
-    // For staff, fetch all document requests
-    return collection(firestore, 'documentRequests');
+    // For residents, only fetch their own document requests
+    return query(collection(firestore, 'documentRequests'), where('residentId', '==', currentUser.id));
   }, [firestore, currentUser]);
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
@@ -63,34 +72,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const login = async (credential: string, password: string) => {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
-    
-    // Check if the credential is an email
-    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credential);
 
-    if (isEmail) {
-        await signInWithEmailAndPassword(auth, credential, password);
-        return;
-    }
-    
-    // If not an email, assume it's a User ID and try to find the corresponding user.
-    // This query is now allowed by the updated security rules for unauthenticated users.
-    const residentsRef = collection(firestore, 'residents');
-    const q = query(residentsRef, where("userId", "==", credential));
-    
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-        throw new Error("auth/user-not-found");
-    }
-    
-    const residentDoc = querySnapshot.docs[0].data() as Resident;
-    const residentEmail = residentDoc.email;
-
-    if (!residentEmail) {
-        throw new Error("auth/invalid-credential"); // Resident has no email on file
-    }
-
-    await signInWithEmailAndPassword(auth, residentEmail, password);
+    // The logic is now simplified: just try to sign in with email and password.
+    // The `addResident` flow ensures residents also have a standard email login.
+    await signInWithEmailAndPassword(auth, credential, password);
   };
 
   const logout = () => {
@@ -117,11 +102,11 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       // Step 2: Create the resident document in /residents collection
       const newResident: Resident = {
         ...newResidentData,
-        id: residentId,
-        userId: userId,
+        id: residentId, // Use the auth UID as the resident document ID
+        userId: userId, // Keep a human-readable ID
         address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
         avatarUrl: `https://picsum.photos/seed/${residentId}/100/100`,
-        email: newResidentData.email, // Ensure email is stored
+        email: newResidentData.email,
       };
       const residentRef = doc(firestore, 'residents', residentId);
       batch.set(residentRef, newResident);
