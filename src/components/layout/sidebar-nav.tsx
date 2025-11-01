@@ -42,19 +42,23 @@ const navItems = {
     { href: '/residents', icon: Users, label: 'Residents' },
     { href: '/documents', icon: FileSignature, label: 'Documents' },
     { href: '/reports', icon: BarChart3, label: 'Reports' },
+    { href: '/settings', icon: Settings, label: 'Settings' },
   ],
   Secretary: [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/residents', icon: Users, label: 'Residents' },
     { href: '/documents', icon: FileSignature, label: 'Documents' },
+    { href: '/settings', icon: Settings, label: 'Settings' },
   ],
   Treasurer: [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/payments', icon: CircleDollarSign, label: 'Payments' },
     { href: '/reports', icon: BarChart3, label: 'Reports' },
+    { href: '/settings', icon: Settings, label: 'Settings' },
   ],
   Resident: [
     { href: '/dashboard', icon: LayoutDashboard, label: 'My Dashboard' },
+    { href: '/settings', icon: Settings, label: 'Settings' },
   ],
 };
 

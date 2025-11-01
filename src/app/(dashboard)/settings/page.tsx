@@ -16,8 +16,10 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { ChangePasswordForm } from "@/components/account/change-password-form";
+import { useAppContext } from "@/contexts/app-context";
+import { ResidentSettings } from "@/components/account/resident-settings";
 
-export default function SettingsPage() {
+function AdminSettings() {
   const { firestore, storage, areServicesAvailable } = useFirebase();
   const [barangayName, setBarangayName] = useState("Barangay Mina De Oro");
   const [address, setAddress] = useState("Bongabong, Oriental Mindoro, Philippines");
@@ -101,92 +103,114 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold font-headline tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your barangay's information and system settings.
-        </p>
-      </div>
-      
-      <Tabs defaultValue="barangay" className="w-full">
-        <TabsList>
-          <TabsTrigger value="barangay">Barangay Details</TabsTrigger>
-          <TabsTrigger value="account">Account</TabsTrigger>
-          <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
-        </TabsList>
-        <TabsContent value="barangay">
-          <Card>
-            <CardHeader>
-              <CardTitle>Barangay Information</CardTitle>
-              <CardDescription>Update the official details of your barangay.</CardDescription>
-            </CardHeader>
-            {isLoading ? (
-              <CardContent>
-                <div className="flex justify-center items-center p-8">
-                  <Loader2 className="animate-spin h-8 w-8 text-primary" />
+    <Tabs defaultValue="barangay" className="w-full">
+      <TabsList>
+        <TabsTrigger value="barangay">Barangay Details</TabsTrigger>
+        <TabsTrigger value="account">Account</TabsTrigger>
+        <TabsTrigger value="users">User Management</TabsTrigger>
+        <TabsTrigger value="system">System</TabsTrigger>
+      </TabsList>
+      <TabsContent value="barangay">
+        <Card>
+          <CardHeader>
+            <CardTitle>Barangay Information</CardTitle>
+            <CardDescription>Update the official details of your barangay.</CardDescription>
+          </CardHeader>
+          {isLoading ? (
+            <CardContent>
+              <div className="flex justify-center items-center p-8">
+                <Loader2 className="animate-spin h-8 w-8 text-primary" />
+              </div>
+            </CardContent>
+          ) : (
+            <>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="barangayName">Barangay Name</Label>
+                  <Input id="barangayName" value={barangayName} onChange={(e) => setBarangayName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="logo">Barangay Seal/Logo</Label>
+                  <div className="flex items-center gap-4">
+                    {sealLogoUrl && <Image src={sealLogoUrl} alt="Barangay Seal" width={64} height={64} className="rounded-full bg-muted object-cover" unoptimized />}
+                    <Input id="logo" type="file" onChange={handleFileChange} accept="image/*" />
+                  </div>
                 </div>
               </CardContent>
-            ) : (
-              <>
-                <CardContent className="space-y-6">
+              <CardFooter>
+                <Button onClick={handleSaveChanges} disabled={isSaving || !areServicesAvailable}>
+                  {isSaving && <Loader2 className="mr-2 animate-spin" />}
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </CardFooter>
+            </>
+          )}
+        </Card>
+      </TabsContent>
+      <TabsContent value="account">
+          <ChangePasswordForm />
+      </TabsContent>
+      <TabsContent value="users">
+          <UserManagementClientPage />
+      </TabsContent>
+      <TabsContent value="system">
+          <Card>
+              <CardHeader>
+                  <CardTitle>System Maintenance</CardTitle>
+                  <CardDescription>Manage system logs, backups, and restores.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="barangayName">Barangay Name</Label>
-                    <Input id="barangayName" value={barangayName} onChange={(e) => setBarangayName(e.target.value)} />
+                      <h4 className="font-semibold">Database</h4>
+                      <div className="flex gap-2">
+                          <Button variant="outline">Backup Database</Button>
+                          <Button variant="destructive">Restore Database</Button>
+                      </div>
                   </div>
+                   <Separator />
                   <div className="space-y-2">
-                    <Label htmlFor="address">Address</Label>
-                    <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} />
+                      <h4 className="font-semibold">System Logs</h4>
+                      <p className="text-sm text-muted-foreground">View transaction logs, login attempts, and system errors.</p>
+                      <Button>View Logs</Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="logo">Barangay Seal/Logo</Label>
-                    <div className="flex items-center gap-4">
-                      {sealLogoUrl && <Image src={sealLogoUrl} alt="Barangay Seal" width={64} height={64} className="rounded-full bg-muted object-cover" unoptimized />}
-                      <Input id="logo" type="file" onChange={handleFileChange} accept="image/*" />
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button onClick={handleSaveChanges} disabled={isSaving || !areServicesAvailable}>
-                    {isSaving && <Loader2 className="mr-2 animate-spin" />}
-                    {isSaving ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </CardFooter>
-              </>
-            )}
+              </CardContent>
           </Card>
-        </TabsContent>
-        <TabsContent value="account">
-            <ChangePasswordForm />
-        </TabsContent>
-        <TabsContent value="users">
-            <UserManagementClientPage />
-        </TabsContent>
-        <TabsContent value="system">
-            <Card>
-                <CardHeader>
-                    <CardTitle>System Maintenance</CardTitle>
-                    <CardDescription>Manage system logs, backups, and restores.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                        <h4 className="font-semibold">Database</h4>
-                        <div className="flex gap-2">
-                            <Button variant="outline">Backup Database</Button>
-                            <Button variant="destructive">Restore Database</Button>
-                        </div>
-                    </div>
-                     <Separator />
-                    <div className="space-y-2">
-                        <h4 className="font-semibold">System Logs</h4>
-                        <p className="text-sm text-muted-foreground">View transaction logs, login attempts, and system errors.</p>
-                        <Button>View Logs</Button>
-                    </div>
-                </CardContent>
-            </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }
+
+
+export default function SettingsPage() {
+    const { currentUser, isDataLoading } = useAppContext();
+
+    if (isDataLoading) {
+        return (
+            <div className="flex justify-center items-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
+    }
+
+    const isResident = currentUser?.role === 'Resident';
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h1 className="text-3xl font-bold font-headline tracking-tight">Settings</h1>
+                <p className="text-muted-foreground">
+                    {isResident 
+                        ? "Manage your personal information and account settings." 
+                        : "Manage your barangay's information and system settings."
+                    }
+                </p>
+            </div>
+            {isResident ? <ResidentSettings /> : <AdminSettings />}
+        </div>
+    );
+}
+
