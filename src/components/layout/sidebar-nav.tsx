@@ -40,13 +40,13 @@ const navItems = {
   'Barangay Captain': [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/residents', icon: Users, label: 'Residents' },
-    { href: '/documents', icon: FileSignature, label: 'Approval' },
+    { href: '/documents', icon: FileSignature, label: 'Documents' },
     { href: '/reports', icon: BarChart3, label: 'Reports' },
   ],
   Secretary: [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/residents', icon: Users, label: 'Residents' },
-    { href: '/documents', icon: FileSignature, label: 'Verification' },
+    { href: '/documents', icon: FileSignature, label: 'Documents' },
   ],
   Treasurer: [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },

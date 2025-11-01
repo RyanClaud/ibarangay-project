@@ -64,6 +64,8 @@ export function DocumentRequestClientPage({ data }: { data: DocumentRequest[] })
   ).sort((a,b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
 
   const canApprove = currentUser?.role === 'Admin' || currentUser?.role === 'Barangay Captain' || currentUser?.role === 'Secretary';
+  const canMarkPaid = currentUser?.role === 'Admin' || currentUser?.role === 'Treasurer';
+  const canRelease = currentUser?.role === 'Admin' || currentUser?.role === 'Secretary';
 
   return (
     <div className="space-y-4">
@@ -132,25 +134,30 @@ export function DocumentRequestClientPage({ data }: { data: DocumentRequest[] })
                           </DropdownMenuItem>
                         )}
                         
-                        {canApprove && (
-                          <>
-                            <DropdownMenuSeparator />
-                            {request.status === 'Pending' && (
-                              <DropdownMenuItem onClick={() => handleStatusChange(request.id, 'Approved')}>
-                                <CheckCircle /> Approve
-                              </DropdownMenuItem>
-                            )}
-                             {request.status === 'Approved' && currentUser?.role === 'Treasurer' && (
-                                <DropdownMenuItem onClick={() => handleStatusChange(request.id, 'Paid')}>
-                                    <Check /> Mark as Paid
-                                </DropdownMenuItem>
-                            )}
-                            {request.status !== 'Rejected' && request.status !== 'Released' &&(
-                              <DropdownMenuItem className="text-destructive" onClick={() => handleStatusChange(request.id, 'Rejected')}>
-                                <XCircle /> Reject
-                              </DropdownMenuItem>
-                            )}
-                          </>
+                        <DropdownMenuSeparator />
+
+                        {canApprove && request.status === 'Pending' && (
+                          <DropdownMenuItem onClick={() => handleStatusChange(request.id, 'Approved')}>
+                            <CheckCircle /> Approve
+                          </DropdownMenuItem>
+                        )}
+                        
+                        {canMarkPaid && request.status === 'Approved' && (
+                            <DropdownMenuItem onClick={() => handleStatusChange(request.id, 'Paid')}>
+                                <Check /> Mark as Paid
+                            </DropdownMenuItem>
+                        )}
+
+                        {canRelease && request.status === 'Paid' && (
+                            <DropdownMenuItem onClick={() => handleStatusChange(request.id, 'Released')}>
+                                <Check /> Mark as Released
+                            </DropdownMenuItem>
+                        )}
+                        
+                        {request.status !== 'Rejected' && request.status !== 'Released' && (
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleStatusChange(request.id, 'Rejected')}>
+                            <XCircle /> Reject
+                          </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
