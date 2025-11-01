@@ -8,20 +8,17 @@ import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { CircleDollarSign, FileText, Users, CheckCircle, Loader2 } from "lucide-react";
 import { useMemo, useEffect, useState } from "react";
 import { useAppContext } from "@/contexts/app-context";
-import { getLoggedInUser } from "@/lib/data";
 
 export default function DashboardPage() {
   const { currentUser, residents, documentRequests, login } = useAppContext();
-  const [initialized, setInitialized] = useState(false);
-
+  
+  // On initial load, if there's no user, simulate a default login.
+  // This will only run once if currentUser is not set.
   useEffect(() => {
-    // On initial load, if there's no user, simulate a default login.
-    // In a real app, this would check for a session token.
     if (!currentUser) {
-        login("admin@ibarangay.com"); // Log in as admin by default
+        login("admin@ibarangay.com");
     }
-    setInitialized(true);
-  }, []);
+  }, [currentUser, login]);
 
   const user = currentUser;
 
@@ -39,7 +36,7 @@ export default function DashboardPage() {
     return [];
   }, [user, documentRequests]);
 
-  if (!initialized || !user) {
+  if (!user) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
