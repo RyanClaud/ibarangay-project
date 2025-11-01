@@ -67,14 +67,15 @@ service cloud.firestore {
     /**
      * @description Rules for the /users/{userId} collection.
      * @path /users/{userId}
-     * @allow (get) Authenticated users can read user profiles.
+     * @allow (get) A user can read their own user profile.
      * @allow (list) Authenticated users can list all users.
      * @allow (create) Logged-in user can create their own user profile.
      * @allow (update) Admins can update users or a user can update their own profile.
      * @allow (delete) Admins can delete users.
      */
     match /users/{userId} {
-      allow get, list: if isSignedIn();
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isSignedIn();
       allow create: if isOwner(userId);
       allow update: if isAdmin() || isOwner(userId);
       allow delete: if isAdmin();
