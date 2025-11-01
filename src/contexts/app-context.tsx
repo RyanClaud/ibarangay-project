@@ -37,8 +37,34 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 function AppProviderContent({ children }: { children: ReactNode }) {
-  const { firestore, isUserLoading: isAuthLoading } = useFirebase();
+  const { firestore, user: firebaseUser, isUserLoading: isAuthLoading } = useFirebase();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+  const { data: users = [], isLoading: isUsersLoading } = useCollection<User>(usersQuery);
+
+  useEffect(() => {
+    if (!isAuthLoading && firebaseUser && users.length > 0) {
+      const appUser = users.find(u => u.id === firebaseUser.uid);
+      if (appUser) {
+        setCurrentUser(appUser);
+      } else {
+         // This can happen if the user exists in Firebase Auth but not in the 'users' collection
+         // Or if the users collection is not yet loaded.
+         // For resident users, their ID might be different. Let's find by email.
+         const userByEmail = users.find(u => u.email === firebaseUser.email);
+         if (userByEmail) {
+            setCurrentUser(userByEmail);
+         } else {
+           console.log("Could not find user in 'users' collection. Logging out.");
+           setCurrentUser(null);
+         }
+      }
+    } else if (!isAuthLoading && !firebaseUser) {
+        setCurrentUser(null);
+    }
+  }, [firebaseUser, isAuthLoading, users]);
+
 
   // Firestore collections - these will only run if currentUser is not null
   const residentsQuery = useMemoFirebase(() => (firestore && currentUser) ? collection(firestore, 'residents') : null, [firestore, currentUser]);
@@ -47,23 +73,29 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const documentRequestsQuery = useMemoFirebase(() => (firestore && currentUser) ? collection(firestore, 'documentRequests') : null, [firestore, currentUser]);
   const { data: documentRequests = [], isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
-  const usersQuery = useMemoFirebase(() => (firestore && currentUser) ? collection(firestore, 'users') : null, [firestore, currentUser]);
-  const { data: users = [], isLoading: isUsersLoading } = useCollection<User>(usersQuery);
-
   const isDataLoading = isAuthLoading || (!!currentUser && (isResidentsLoading || isRequestsLoading || isUsersLoading));
 
   const login = (credential: string) => {
-    // We use initialUsers here because the full 'users' collection might not be available yet.
-    // The security rules only allow logged-in users to fetch the user list.
-    const user = findUserByCredential(credential, [...initialUsers, ...users]);
+    // We can only check against staff users here, as resident data isn't loaded yet.
+    // The actual "login" will be handled by Firebase Auth, and the effect above will set the user.
+    const user = findUserByCredential(credential, initialUsers);
     if (user) {
-      setCurrentUser(user);
+      // In a real app, you would now call signInWithEmailAndPassword(auth, user.email, password)
+      // For this mockup, we'll find the full user from the now-loaded collection and set it.
+       const fullUser = users.find(u => u.email.toLowerCase() === credential.toLowerCase() || u.userId?.toLowerCase() === credential.toLowerCase());
+       if (fullUser) {
+        setCurrentUser(fullUser);
+        return fullUser;
+       }
     }
-    return user;
+    // Resident login would be handled similarly by finding them in the residents collection if needed
+    // or ideally via Firebase Auth directly.
+    return undefined;
   };
 
   const logout = () => {
     setCurrentUser(null);
+    // In a real app: signOut(auth);
   };
 
   const addResident = (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => {
@@ -84,9 +116,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
     // Also create a user account for the resident
      const newUser: User = {
-       id: newResident.id, // Use resident ID for user ID for simplicity in this context
+       id: newResident.userId, // Using the resident's User ID for the auth user's UID
        name: `${newResident.firstName} ${newResident.lastName}`,
-       email: `${newResident.lastName.toLowerCase()}${newResUserIdNumber}@ibarangay.com`,
+       email: `${newResident.lastName.toLowerCase()}${newResUserIdNumber}@ibarangay.com`, // dummy email
        avatarUrl: newResident.avatarUrl,
        role: 'Resident',
        residentId: newResident.id,
