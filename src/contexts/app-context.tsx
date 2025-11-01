@@ -59,7 +59,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   // --- Resident-specific Queries ---
   const singleUserDocRef = useMemoFirebase(() => {
-    if (!firestore || !currentUser?.id || currentUser.role !== 'Resident') return null;
+    if (!firestore || !currentUser?.id) return null;
     return doc(firestore, 'users', currentUser.id);
   }, [firestore, currentUser]);
   const { data: singleUser, isLoading: isSingleUserLoading } = useDoc<User>(singleUserDocRef);
@@ -91,10 +91,12 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   // --- Document Requests Query (works for both roles) ---
   const documentRequestsQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
-    if (currentUser.role !== 'Resident') {
-      return collection(firestore, 'documentRequests');
+    if (currentUser.role === 'Resident') {
+      // Residents see only their own requests
+      return query(collection(firestore, 'documentRequests'), where('residentId', '==', currentUser.id));
     }
-    return query(collection(firestore, 'documentRequests'), where('residentId', '==', currentUser.id));
+    // Staff see all requests
+    return collection(firestore, 'documentRequests');
   }, [firestore, currentUser]);
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
@@ -104,7 +106,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
   
     const email = credential;
-    // Attempt to sign in with the determined email
     await signInWithEmailAndPassword(auth, email, password);
   };
 
@@ -174,10 +175,11 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
         await batch.commit();
     } catch (error: any) {
-        if (error.code === 'auth/email-already-in-use') {
-            throw new Error("An account for this email already exists.");
-        }
-        throw error;
+      console.error("Error creating resident:", error);
+      if (error.code === 'auth/email-already-in-use') {
+          throw new Error("An account for this email already exists.");
+      }
+      throw new Error("Failed to create resident account.");
     }
   };
 
@@ -196,10 +198,11 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const residentRef = doc(firestore, 'residents', updatedData.id);
     updateDocumentNonBlocking(residentRef, updatedData);
   
+    // Also update the associated user document
     const userRef = doc(firestore, 'users', updatedData.id);
     updateDocumentNonBlocking(userRef, { 
       name: `${updatedData.firstName} ${updatedData.lastName}`,
-      avatarUrl: updatedData.avatarUrl, // Also update user doc
+      avatarUrl: updatedData.avatarUrl,
     });
   };
 
@@ -276,19 +279,21 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const updateUser = async (updatedUser: User, newAvatarFile?: File | null) => {
     if (!firestore || !storage) return;
-
-    let updatedData = { ...updatedUser };
-    const { id, email, ...rest } = updatedData; // email and id cannot be changed
-
+  
+    const dataToUpdate: Partial<User> = {
+      name: updatedUser.name,
+      role: updatedUser.role,
+    };
+  
     if (newAvatarFile) {
-        const storageRef = ref(storage, `profile-pictures/${id}/${newAvatarFile.name}`);
-        const uploadResult = await uploadBytes(storageRef, newAvatarFile);
-        const avatarUrl = await getDownloadURL(uploadResult.ref);
-        rest.avatarUrl = avatarUrl;
+      const storageRef = ref(storage, `profile-pictures/${updatedUser.id}/${newAvatarFile.name}`);
+      const uploadResult = await uploadBytes(storageRef, newAvatarFile);
+      const avatarUrl = await getDownloadURL(uploadResult.ref);
+      dataToUpdate.avatarUrl = avatarUrl;
     }
     
-    const userRef = doc(firestore, updatedUser.id);
-    updateDocumentNonBlocking(userRef, rest);
+    const userRef = doc(firestore, 'users', updatedUser.id);
+    updateDocumentNonBlocking(userRef, dataToUpdate);
   };
 
   const deleteUser = (userId: string) => {
