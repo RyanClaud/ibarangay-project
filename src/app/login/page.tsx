@@ -11,39 +11,51 @@ import { useAppContext } from '@/contexts/app-context';
 import { toast } from '@/hooks/use-toast';
 import { Logo } from '@/components/logo';
 import { Loader2 } from 'lucide-react';
+import { useAuth as useAppAuth } from '@/hooks/use-auth';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAppContext();
+  const { user: authenticatedUser, isLoading: isAuthLoading } = useAppAuth();
   const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isProcessingLogin, setIsProcessingLogin] = useState(false);
+
+  React.useEffect(() => {
+    // If the useAuth hook determines we have a user, redirect to the dashboard.
+    if (authenticatedUser && !isAuthLoading) {
+      toast({
+        title: 'Login Successful',
+        description: `Welcome back, ${authenticatedUser.name}!`,
+      });
+      router.push('/dashboard');
+    }
+  }, [authenticatedUser, isAuthLoading, router]);
+
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
-    setIsLoading(true);
+    setIsProcessingLogin(true);
     
     try {
-      const user = await login(credential, password);
-      if (user) {
-        toast({
-          title: 'Login Successful',
-          description: `Welcome back, ${user.name}!`,
-        });
-        router.push('/dashboard');
-      } else {
-        throw new Error("Login failed");
-      }
+      // The login function in the context now handles the sign-in process.
+      // We don't need to check for a returned user here anymore.
+      await login(credential, password);
+      // The useEffect above will handle the redirect on successful auth state change.
     } catch (error: any) {
+      console.error(error); // Log the actual error for debugging
       toast({
         title: 'Login Failed',
-        description: error.message || 'Invalid credentials. Please try again.',
+        description: 'Invalid credentials. Please check your User ID/Email and password.',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
+       setIsProcessingLogin(false);
     }
+    // Don't set isProcessingLogin to false here if login is successful,
+    // as the page will redirect. Only set it on failure.
   };
+
+  const isLoading = isAuthLoading || isProcessingLogin;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">

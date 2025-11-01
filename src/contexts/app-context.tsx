@@ -20,7 +20,7 @@ import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from 'fire
 interface AppContextType {
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
-  login: (credential: string, password: string) => Promise<User | undefined>;
+  login: (credential: string, password: string) => Promise<void>;
   logout: () => void;
   residents: Resident[] | null;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => void;
@@ -41,25 +41,33 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // Helper function to seed initial users into Firebase Auth and Firestore
 const seedInitialUsers = async (firestore: any, auth: any) => {
   console.log('Checking and seeding initial users if necessary...');
-  const batch = writeBatch(firestore);
 
   for (const user of initialUsers) {
     try {
-      // Attempt to create the user in Firebase Auth.
+      // Check if user already exists in Auth
+      const signInMethods = await fetchSignInMethodsForEmail(auth, user.email);
+      if (signInMethods.length > 0) {
+        console.log(`User ${user.email} already exists in Auth. Skipping creation.`);
+        continue;
+      }
+      
+      // User does not exist in Auth, so create them
+      console.log(`Creating auth user for ${user.email}...`);
       const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
       const authUser = userCredential.user;
-      console.log(`Created auth user for ${user.email}`);
 
-      // If successful, add their Firestore document to the batch.
+      // Now create their document in Firestore using the UID from Auth
       const userDocRef = doc(firestore, 'users', authUser.uid);
       const userData: User = {
         ...user,
         id: authUser.uid, // This is critical
       };
-      batch.set(userDocRef, userData);
-      
+       // Note: We are not using the non-blocking version here because seeding needs to be complete.
+      await setDoc(userDocRef, userData);
+      console.log(`Created Firestore document for ${user.email}`);
+
     } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') {
+       if (error.code === 'auth/email-already-in-use') {
         // This is expected if the script runs more than once.
         console.log(`User ${user.email} already exists in Auth. Skipping creation.`);
       } else {
@@ -68,14 +76,7 @@ const seedInitialUsers = async (firestore: any, auth: any) => {
       }
     }
   }
-
-  try {
-    // Commit the batch of new user documents.
-    await batch.commit();
-    console.log('Finished user seeding check.');
-  } catch (error) {
-    console.error('Error committing user-seeding batch:', error);
-  }
+   console.log('Finished user seeding check.');
 };
 
 
@@ -123,7 +124,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   // 4. Consolidate loading state.
   const isDataLoading = isAuthLoading || (!!firebaseUser && (!users || isUsersLoading || !currentUser || isResidentsLoading || isRequestsLoading));
 
-  const login = async (credential: string, password: string): Promise<User | undefined> => {
+  const login = async (credential: string, password: string): Promise<void> => {
     if (!auth || !firestore) {
       throw new Error("Firebase not initialized");
     }
@@ -137,24 +138,27 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       
       if (!querySnapshot.empty) {
         const residentDoc = querySnapshot.docs[0].data() as Resident;
-        // Now find the corresponding user account to get the email
-        const usersQuery = query(collection(firestore, "users"), where("residentId", "==", residentDoc.id));
-        const userQuerySnapshot = await getDocs(usersQuery);
-
-        if (!userQuerySnapshot.empty) {
-            const userAccount = userQuerySnapshot.docs[0].data() as User;
-            emailToSignIn = userAccount.email;
+        // The resident's email is now stored on the resident document.
+        // But for this app, we'll assume the email is derived for login purposes
+        // IMPORTANT: In a real-world app, you'd store the resident's actual email
+        // and use that for login. Here we derive it as we did during creation.
+        // This is a simplification. The user's UID is the Resident ID.
+        const userDocRef = doc(firestore, "users", residentDoc.userId);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+            emailToSignIn = userDoc.data().email;
         } else {
-             throw new Error("No user account associated with that Resident ID.");
+            throw new Error("No user account associated with that Resident ID.");
         }
       } else {
-        throw new Error("Invalid User ID. Please use your email if you are a staff member.");
+        // It's not a resident ID, so we assume it's an email for a staff member
+        emailToSignIn = credential;
       }
     }
 
+    // Directly attempt to sign in. The onAuthStateChanged listener will handle the app state change.
+    // Errors will be caught by the component calling this function.
     initiateEmailSignIn(auth, emailToSignIn, password);
-    // Let the auth state listener handle the user update.
-    return undefined; 
   };
 
   const logout = () => {
