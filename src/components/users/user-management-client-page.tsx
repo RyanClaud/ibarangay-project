@@ -19,7 +19,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { User, Role } from "@/lib/types";
+import type { User } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { AddUserDialog } from "./add-user-dialog";
 import { EditUserDialog } from "./edit-user-dialog";
@@ -35,15 +35,19 @@ export function UserManagementClientPage() {
   const [userToEdit, setUserToEdit] = React.useState<User | null>(null);
   const [userToDelete, setUserToDelete] = React.useState<User | null>(null);
 
-  const filteredData = users.filter(
+  const filteredData = (users || []).filter(
     (user) =>
       user.role !== 'Resident' &&
       (user.name.toLowerCase().includes(filter.toLowerCase()) ||
       user.email.toLowerCase().includes(filter.toLowerCase()))
   ).sort((a, b) => a.name.localeCompare(b.name));
 
-  const handleAddUser = (newUser: Omit<User, 'id' | 'avatarUrl'>) => {
-    addUser(newUser);
+  const handleAddUser = (newUser: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => {
+    try {
+      addUser(newUser);
+    } catch(e: any) {
+      console.error(e);
+    }
   };
 
   const handleUpdateUser = (updatedUser: User) => {

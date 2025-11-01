@@ -28,7 +28,7 @@ interface AppContextType {
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
   users: User[] | null;
-  addUser: (user: Omit<User, 'id' | 'avatarUrl'>) => void;
+  addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => void;
   updateUser: (user: User) => void;
   deleteUser: (userId: string) => void;
   isDataLoading: boolean;
@@ -231,7 +231,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     updateDocumentNonBlocking(requestRef, { status });
   };
 
-  const addUser = async (user: Omit<User, 'id' | 'avatarUrl'>) => {
+  const addUser = async (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => {
     if (!firestore || !auth) return;
     
     try {
@@ -257,12 +257,12 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const updateUser = (updatedUser: User) => {
     if (!firestore) return;
     const userRef = doc(firestore, 'users', updatedUser.id);
-    const { email, ...rest } = updatedUser;
+    const { id, email, ...rest } = updatedUser; // email and id cannot be changed
     updateDocumentNonBlocking(userRef, rest);
   };
 
   const deleteUser = (userId: string) => {
-    if (!firestore || !auth) return;
+    if (!firestore) return;
     console.warn("Warning: Deleting user from Firestore only. Auth user remains and should be deleted from the Firebase Console or via a backend function.");
     const userRef = doc(firestore, 'users', userId);
     deleteDocumentNonBlocking(userRef);

@@ -29,7 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 const userSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
-  role: z.enum(["Admin", "Barangay Captain", "Secretary", "Treasurer", "Resident"]),
+  role: z.enum(["Admin", "Barangay Captain", "Secretary", "Treasurer"]),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
@@ -53,13 +53,21 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
   });
 
   const onSubmit = (data: UserFormData) => {
-    onAddUser(data);
-    toast({
-        title: 'User Added',
-        description: `${data.name} has been added as a system user. Their default password is 'password'.`,
-    });
-    form.reset();
-    onClose();
+    try {
+        onAddUser(data);
+        toast({
+            title: 'User Added',
+            description: `${data.name} has been added as a system user. Their default password is 'password'.`,
+        });
+        form.reset();
+        onClose();
+    } catch (error: any) {
+        toast({
+            title: 'Failed to Add User',
+            description: error.message || "An unexpected error occurred.",
+            variant: "destructive"
+        });
+    }
   };
 
   return (
@@ -68,7 +76,7 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
         <DialogHeader>
           <DialogTitle>Add New User</DialogTitle>
           <DialogDescription>
-            Enter the details of the new staff or official. Click save when you're done.
+            Enter the details of the new staff or official. The default password is `password`.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -91,7 +99,7 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email Address</FormLabel>
+                  <FormLabel>Email Address (for login)</FormLabel>
                   <FormControl>
                     <Input type="email" placeholder="juan.cruz@example.com" {...field} />
                   </FormControl>
@@ -112,7 +120,7 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {ROLES.filter(r => r !== 'Resident').map(role => (
+                      {ROLES.map(role => (
                         <SelectItem key={role} value={role}>{role}</SelectItem>
                       ))}
                     </SelectContent>

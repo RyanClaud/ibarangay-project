@@ -102,7 +102,7 @@ export function EditUserDialog({ isOpen, onClose, onUpdateUser, user }: EditUser
                 <FormItem>
                   <FormLabel>Email Address</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="juan.cruz@example.com" {...field} />
+                    <Input type="email" placeholder="juan.cruz@example.com" {...field} disabled />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -121,7 +121,7 @@ export function EditUserDialog({ isOpen, onClose, onUpdateUser, user }: EditUser
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {ROLES.filter(r => r !== 'Resident').map(role => (
+                      {ROLES.map(role => (
                         <SelectItem key={role} value={role}>{role}</SelectItem>
                       ))}
                     </SelectContent>
