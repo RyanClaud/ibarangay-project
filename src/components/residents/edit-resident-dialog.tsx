@@ -54,6 +54,14 @@ interface EditResidentDialogProps {
 export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident }: EditResidentDialogProps) {
   const form = useForm<ResidentFormData>({
     resolver: zodResolver(residentSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      purok: '',
+      birthdate: '',
+      householdNumber: '',
+    },
   });
 
   useEffect(() => {
