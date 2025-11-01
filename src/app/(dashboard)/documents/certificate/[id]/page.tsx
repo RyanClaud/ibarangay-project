@@ -148,6 +148,13 @@ export default function CertificatePage() {
 
                 <footer className="mt-24 flex justify-end">
                     <div className="text-center w-64">
+                         <div className="mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" className="h-20 w-full">
+                                <path d="M10 50 C 20 20, 40 50, 50 50 S 70 80, 80 50 C 90 20, 110 80, 130 50" stroke="black" fill="transparent" strokeWidth="3" strokeLinecap="round"/>
+                                <path d="M150 50 C 160 20, 180 80, 200 50 S 230 80, 250 50" stroke="black" fill="transparent" strokeWidth="3" strokeLinecap="round"/>
+                                <path d="M270 50 Q 280 20, 300 50 T 330 50 T 360 50" stroke="black" fill="transparent" strokeWidth="3" strokeLinecap="round"/>
+                            </svg>
+                        </div>
                         <p className="font-bold uppercase border-t-2 border-black pt-2">Juan Dela Cruz</p>
                         <p>Punong Barangay</p>
                     </div>
