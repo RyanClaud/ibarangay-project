@@ -63,6 +63,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!credential.includes('@')) {
         const q = query(collection(firestore, "residents"), where("userId", "==", credential));
         const querySnapshot = await getDocs(q);
+        
         if (!querySnapshot.empty) {
             const residentDoc = querySnapshot.docs[0];
             const userDoc = await getDoc(doc(firestore, 'users', residentDoc.id));
@@ -72,8 +73,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
                 throw new Error("User record not found for this resident ID.");
             }
         } else {
-             // If not found as a resident ID, assume it's an email for a staff member
-             emailToLogin = credential;
+             // If not found as a resident ID, it might be an email for a staff member.
+             // We let it proceed with the original credential as email.
+             console.log(`Could not find resident with User ID: ${credential}. Attempting login with credential as email.`);
         }
     }
     
@@ -89,38 +91,42 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const addResident = async (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => {
     if (!firestore || !auth) return;
     
-    // Create a temporary, unique email for Firebase Auth creation
-    const tempEmail = `${Date.now()}@ibarangay.local`;
     const defaultPassword = 'password';
 
     try {
+      const newAuthUserRef = doc(collection(firestore, 'temp'));
+      const tempEmail = `${newAuthUserRef.id}@ibarangay.local`;
+
       // Step 1: Create the user in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, tempEmail, defaultPassword);
       const authUser = userCredential.user;
       
       const batch = writeBatch(firestore);
 
+      const residentId = authUser.uid;
+      const userId = `R-${Math.floor(Date.now() / 1000).toString().slice(-6)}`;
+
       // Step 2: Create the resident document in /residents collection
       const newResident: Resident = {
         ...newResidentData,
-        id: authUser.uid, // CRITICAL: Use Auth UID for the resident document ID
-        userId: authUser.uid, // Use Auth UID as the User ID as well for simplicity and uniqueness
+        id: residentId,
+        userId: userId,
         address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
-        avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
+        avatarUrl: `https://picsum.photos/seed/${residentId}/100/100`,
       };
-      const residentRef = doc(firestore, 'residents', authUser.uid);
+      const residentRef = doc(firestore, 'residents', residentId);
       batch.set(residentRef, newResident);
 
       // Step 3: Create the user document in /users collection
       const newUser: User = {
-        id: authUser.uid, // CRITICAL: Use the same Auth UID for the user document ID
+        id: residentId,
         name: `${newResidentData.firstName} ${newResidentData.lastName}`,
-        email: tempEmail, // Store the temporary email
+        email: tempEmail,
         avatarUrl: newResident.avatarUrl,
         role: 'Resident',
-        residentId: newResident.id,
+        residentId: residentId,
       };
-      const userRef = doc(firestore, 'users', authUser.uid);
+      const userRef = doc(firestore, 'users', residentId);
       batch.set(userRef, newUser);
 
       // Step 4: Commit all writes at once
@@ -147,10 +153,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const deleteResident = async (residentId: string) => {
     if (!firestore || !auth) return;
-    // This is a simplified client-side deletion. 
-    // In a production app, this should be a secure backend/Cloud Function operation
-    // that also deletes the Firebase Auth user.
-    console.warn("Warning: Deleting Firestore documents only. The Firebase Auth user must be deleted manually from the Firebase Console.");
+    console.warn("Warning: Deleting Firestore documents only. The Firebase Auth user must be deleted manually from the Firebase Console or via a backend function.");
     
     const batch = writeBatch(firestore);
     const residentRef = doc(firestore, 'residents', residentId);
@@ -262,5 +265,3 @@ export function useAppContext() {
   }
   return context;
 }
-
-    
