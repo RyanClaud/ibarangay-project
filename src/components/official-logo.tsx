@@ -9,7 +9,6 @@ export function OfficialLogo({ className }: { className?: string }) {
         alt="Official Seal of Bongabong"
         fill
         className="object-contain"
-        unoptimized
       />
     </div>
   );
