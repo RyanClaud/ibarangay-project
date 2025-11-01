@@ -58,7 +58,7 @@ export function PaymentsClientPage() {
     setFoundRequest(null);
     const request = (documentRequests || []).find(
       (req) =>
-        req.referenceNumber === data.referenceNumber && req.status === "Paid"
+        req.referenceNumber === data.referenceNumber && (req.status === "Paid" || req.status === "Released")
     );
 
     if (request) {
@@ -67,7 +67,7 @@ export function PaymentsClientPage() {
       toast({
         title: "Request Not Found",
         description:
-          "No paid, unreleased request found with that reference number.",
+          "No paid or released request was found with that reference number.",
         variant: "destructive",
       });
     }
@@ -77,12 +77,19 @@ export function PaymentsClientPage() {
   const handleReleaseDocument = () => {
     if (!foundRequest) return;
     
-    updateDocumentRequestStatus(foundRequest.id, 'Released');
-
-    toast({
-      title: "Document Released",
-      description: `Request for ${foundRequest.residentName} has been marked as released.`,
-    });
+    // Only update if the status is not already "Released"
+    if (foundRequest.status !== 'Released') {
+      updateDocumentRequestStatus(foundRequest.id, 'Released');
+      toast({
+        title: "Document Released",
+        description: `Request for ${foundRequest.residentName} has been marked as released.`,
+      });
+    } else {
+       toast({
+        title: "Document Already Released",
+        description: `This document has already been released.`,
+      });
+    }
 
     // Reset the state
     setFoundRequest(null);
@@ -100,7 +107,7 @@ export function PaymentsClientPage() {
         <CardHeader>
           <CardTitle>Verify Submitted Payments</CardTitle>
           <CardDescription>
-            Use the resident's reference number to find their request and verify the submitted payment details.
+            Use the resident's reference number to verify their submitted payment and release the document.
           </CardDescription>
         </CardHeader>
         <Form {...searchForm}>
