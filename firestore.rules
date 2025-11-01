@@ -40,7 +40,11 @@ service cloud.firestore {
     }
     
     function getUserRole(uid) {
-      return get(/databases/$(database)/documents/users/$(uid)).data.role;
+      let userDoc = get(/databases/$(database)/documents/users/$(uid));
+      if (userDoc.data == null) {
+        return "";
+      }
+      return userDoc.data.role;
     }
 
     /**
@@ -54,7 +58,8 @@ service cloud.firestore {
      * @description Checks if the authenticated user is a staff member (not a "Resident").
      */
     function isStaff() {
-      return isSignedIn() && getUserRole(request.auth.uid) != "Resident";
+      let role = getUserRole(request.auth.uid);
+      return isSignedIn() && role != "Resident" && role != "";
     }
     
     /**
@@ -65,7 +70,7 @@ service cloud.firestore {
       allow list: if isStaff();
       allow create: if true; 
       allow update: if isAdmin() || isOwner(userId);
-      allow delete: if isAdmin();
+      allow delete: if isStaff();
     }
 
     /**
@@ -86,11 +91,11 @@ service cloud.firestore {
      */
     match /documentRequests/{documentRequestId} {
       // A resident can get/list their own requests. Staff can read/list any request.
-      allow read: if isStaff() || resource.data.residentId == request.auth.uid;
+      allow read: if isStaff() || (resource.data.residentId == request.auth.uid);
       // A resident can only create document requests for themselves.
       allow create: if request.resource.data.residentId == request.auth.uid;
       // A resident can update/delete their own requests. Staff can manage any.
-      allow write: if isStaff() || resource.data.residentId == request.auth.uid;
+      allow write: if isStaff() || (resource.data.residentId == request.auth.uid);
     }
 
     /**
