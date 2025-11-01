@@ -14,7 +14,7 @@ export default function CertificatePage() {
   const router = useRouter();
 
   // Show loader if context data is not yet available
-  if (!currentUser) {
+  if (!currentUser || documentRequests.length === 0 || residents.length === 0) {
     return (
         <div className="flex h-full w-full items-center justify-center p-8">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
