@@ -14,7 +14,7 @@ import {
 } from '@/firebase';
 import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs, limit } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 
 interface AppContextType {
@@ -34,6 +34,7 @@ interface AppContextType {
   deleteUser: (userId: string) => void;
   isDataLoading: boolean;
   login: (credential: string, password: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -70,18 +71,20 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   
   // --- Combined Data Logic ---
   const users = useMemo(() => {
-    if (currentUser?.role === 'Resident') {
+    if (!currentUser) return null;
+    if (currentUser.role === 'Resident') {
       return singleUser ? [singleUser] : [];
     }
     return allUsers;
-  }, [currentUser?.role, allUsers, singleUser]);
+  }, [currentUser, allUsers, singleUser]);
 
   const residents = useMemo(() => {
-    if (currentUser?.role === 'Resident') {
+    if (!currentUser) return null;
+    if (currentUser.role === 'Resident') {
       return singleResident ? [singleResident] : [];
     }
     return allResidents;
-  }, [currentUser?.role, allResidents, singleResident]);
+  }, [currentUser, allResidents, singleResident]);
 
 
   // --- Document Requests Query (works for both roles) ---
@@ -110,51 +113,65 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     setCurrentUser(null);
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    if (!auth?.currentUser) throw new Error("You must be logged in to change your password.");
+
+    const user = auth.currentUser;
+    if (!user.email) throw new Error("Cannot re-authenticate user without an email.");
+
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+
+    try {
+        await reauthenticateWithCredential(user, credential);
+        await updatePassword(user, newPassword);
+        // We log out the user for security, forcing them to log in with the new password.
+        logout();
+    } catch (error: any) {
+        console.error("Password change error:", error.code);
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            throw new Error("The current password you entered is incorrect.");
+        }
+        throw new Error("Failed to change password. Please try again.");
+    }
+  };
+
   const addResident = async (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
     
     const defaultPassword = 'password';
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, newResidentData.email, defaultPassword);
-      const authUser = userCredential.user;
-      
-      const batch = writeBatch(firestore);
+    const userCredential = await createUserWithEmailAndPassword(auth, newResidentData.email, defaultPassword);
+    const authUser = userCredential.user;
+    
+    const batch = writeBatch(firestore);
 
-      const residentId = authUser.uid;
-      const userId = `R-${authUser.uid.slice(0,6).toUpperCase()}`;
+    const residentId = authUser.uid;
+    const userId = `R-${authUser.uid.slice(0,6).toUpperCase()}`;
 
-      const newResident: Resident = {
-        ...newResidentData,
-        id: residentId, 
-        userId: userId, 
-        address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
-        avatarUrl: `https://picsum.photos/seed/${residentId}/100/100`,
-        email: newResidentData.email,
-      };
-      const residentRef = doc(firestore, 'residents', residentId);
-      batch.set(residentRef, newResident);
+    const newResident: Resident = {
+      ...newResidentData,
+      id: residentId, 
+      userId: userId, 
+      address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
+      avatarUrl: `https://picsum.photos/seed/${residentId}/100/100`,
+      email: newResidentData.email,
+    };
+    const residentRef = doc(firestore, 'residents', residentId);
+    batch.set(residentRef, newResident);
 
-      const newUser: User = {
-        id: residentId,
-        name: `${newResidentData.firstName} ${newResidentData.lastName}`,
-        email: newResidentData.email,
-        avatarUrl: newResident.avatarUrl,
-        role: 'Resident',
-        residentId: residentId,
-      };
-      const userRef = doc(firestore, 'users', residentId);
-      batch.set(userRef, newUser);
+    const newUser: User = {
+      id: residentId,
+      name: `${newResidentData.firstName} ${newResidentData.lastName}`,
+      email: newResidentData.email,
+      avatarUrl: newResident.avatarUrl,
+      role: 'Resident',
+      residentId: residentId,
+    };
+    const userRef = doc(firestore, 'users', residentId);
+    batch.set(userRef, newUser);
 
-      await batch.commit();
+    await batch.commit();
 
-    } catch (error: any) {
-      console.error("Error creating new resident:", error);
-      if (error.code === 'auth/email-already-in-use') {
-         throw new Error("An account for this email already exists.");
-      }
-       throw new Error("Failed to create resident account.");
-    }
   };
 
   const updateResident = (updatedResident: Resident) => {
@@ -165,7 +182,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const userRef = doc(firestore, 'users', updatedResident.id);
     updateDocumentNonBlocking(userRef, { 
       name: `${updatedResident.firstName} ${updatedResident.lastName}`,
-      email: updatedResident.email,
+      // We do not update email here as it's tied to auth.
     });
   };
 
@@ -221,24 +238,16 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const addUser = async (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
     
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
-      const authUser = userCredential.user;
-      
-      const newUser: User = {
-        ...user,
-        id: authUser.uid,
-        avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
-      };
-      const userRef = doc(firestore, 'users', authUser.uid);
-      await setDoc(userRef, newUser, { merge: true });
-    } catch (error: any) {
-      console.error("Error creating auth user:", error);
-      if (error.code === 'auth/email-already-in-use') {
-        throw new Error("This email is already in use. Please use a different email.");
-      }
-      throw new Error("Failed to create user.");
-    }
+    const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
+    const authUser = userCredential.user;
+    
+    const newUser: User = {
+      ...user,
+      id: authUser.uid,
+      avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
+    };
+    const userRef = doc(firestore, 'users', authUser.uid);
+    await setDoc(userRef, newUser, { merge: true });
   };
 
   const updateUser = (updatedUser: User) => {
@@ -273,6 +282,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       deleteUser,
       isDataLoading,
       login,
+      changePassword,
     }}>
       {children}
     </AppContext.Provider>

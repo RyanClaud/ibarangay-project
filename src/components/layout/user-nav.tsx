@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { User } from "@/lib/types";
-import { LogOut, Settings, User as UserIcon } from "lucide-react";
+import { LogOut, Settings, User as UserIcon, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { useAppContext } from "@/contexts/app-context";
 import { useRouter } from "next/navigation";
@@ -62,6 +62,11 @@ export function UserNav({ user }: UserNavProps) {
           <DropdownMenuItem asChild>
             <Link href="#">
               <UserIcon /> Profile
+            </Link>
+          </DropdownMenuItem>
+           <DropdownMenuItem asChild>
+            <Link href="/settings">
+              <KeyRound /> Change Password
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>

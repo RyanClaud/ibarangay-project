@@ -15,6 +15,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
+import { ChangePasswordForm } from "@/components/account/change-password-form";
 
 export default function SettingsPage() {
   const { firestore, storage, areServicesAvailable } = useFirebase();
@@ -104,13 +105,14 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-3xl font-bold font-headline tracking-tight">Settings</h1>
         <p className="text-muted-foreground">
-          Manage your barangay&apos;s information and system settings.
+          Manage your barangay's information and system settings.
         </p>
       </div>
       
       <Tabs defaultValue="barangay" className="w-full">
         <TabsList>
           <TabsTrigger value="barangay">Barangay Details</TabsTrigger>
+          <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
         </TabsList>
@@ -154,6 +156,9 @@ export default function SettingsPage() {
               </>
             )}
           </Card>
+        </TabsContent>
+        <TabsContent value="account">
+            <ChangePasswordForm />
         </TabsContent>
         <TabsContent value="users">
             <UserManagementClientPage />
