@@ -55,34 +55,44 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   // If the user is a resident, we fetch their single user document separately.
   const userDocRef = useMemoFirebase(() => {
-      if (!firestore || !currentUser || currentUser.role !== 'Resident') return null;
+      if (!firestore || !currentUser?.id) return null;
       return doc(firestore, 'users', currentUser.id);
-  }, [firestore, currentUser]);
+  }, [firestore, currentUser?.id]);
 
-  const { data: residentUserDoc, isLoading: isResidentUserLoading } = useDoc<User>(userDocRef);
+  const { data: singleUserDoc, isLoading: isSingleUserLoading } = useDoc<User>(userDocRef);
 
   // Combine the user data based on role
   const users = useMemo(() => {
       if (currentUser?.role === 'Resident') {
           // If a resident is logged in, the `users` array should only contain their own user object.
-          // The useDoc hook `residentUserDoc` already fetches just this one document.
-          return residentUserDoc ? [residentUserDoc] : [];
+          return singleUserDoc ? [singleUserDoc] : [];
       }
       // For staff, `staffUsers` from useCollection contains the list of all users (or is null).
       return staffUsers;
-  }, [currentUser?.role, staffUsers, residentUserDoc]);
+  }, [currentUser?.role, staffUsers, singleUserDoc]);
 
 
-  const residentsQuery = useMemoFirebase(() => {
-    if (!firestore || !currentUser) return null;
-    // Staff can see all residents
-    if (currentUser.role !== 'Resident') {
-      return collection(firestore, 'residents');
-    }
-    // Residents should fetch their own profile specifically using their ID.
-    return query(collection(firestore, 'residents'), where('id', '==', currentUser.id));
+  // Logic for fetching residents
+  const staffResidentsQuery = useMemoFirebase(() => {
+    if (!firestore || !currentUser || currentUser.role === 'Resident') return null;
+    return collection(firestore, 'residents');
   }, [firestore, currentUser]);
-  const { data: residents, isLoading: isResidentsLoading } = useCollection<Resident>(residentsQuery);
+  
+  const { data: staffResidents, isLoading: isStaffResidentsLoading } = useCollection<Resident>(staffResidentsQuery);
+
+  const residentDocRef = useMemoFirebase(() => {
+    if (!firestore || !currentUser?.id || currentUser.role !== 'Resident') return null;
+    return doc(firestore, 'residents', currentUser.id);
+  }, [firestore, currentUser?.id, currentUser?.role]);
+  
+  const { data: singleResidentDoc, isLoading: isSingleResidentLoading } = useDoc<Resident>(residentDocRef);
+
+  const residents = useMemo(() => {
+    if (currentUser?.role === 'Resident') {
+      return singleResidentDoc ? [singleResidentDoc] : [];
+    }
+    return staffResidents;
+  }, [currentUser?.role, staffResidents, singleResidentDoc]);
   
   const documentRequestsQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
@@ -95,11 +105,32 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   }, [firestore, currentUser]);
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
-  const isDataLoading = !currentUser || isUsersLoading || isResidentsLoading || isRequestsLoading || isResidentUserLoading;
+  const isDataLoading = !currentUser || isUsersLoading || isSingleUserLoading || isStaffResidentsLoading || isSingleResidentLoading || isRequestsLoading;
 
   const login = async (credential: string, password: string) => {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
-    await signInWithEmailAndPassword(auth, credential, password);
+
+    try {
+        // First, try to sign in directly, assuming the credential is an email.
+        await signInWithEmailAndPassword(auth, credential, password);
+        return; // Success
+    } catch (error: any) {
+        // If it fails with "invalid-credential", it might be a resident User ID.
+        if (error.code === 'auth/invalid-credential') {
+            console.log("Initial email sign-in failed, trying resident User ID lookup...");
+            const q = query(collection(firestore, "residents"), where("userId", "==", credential));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                const residentDoc = querySnapshot.docs[0].data() as Resident;
+                // Now, try signing in with the fetched email.
+                await signInWithEmailAndPassword(auth, residentDoc.email, password);
+                return; // Success
+            }
+        }
+        // If it's another error or the lookup fails, re-throw the original error.
+        throw error;
+    }
   };
 
   const logout = () => {
@@ -120,6 +151,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       const batch = writeBatch(firestore);
 
       const residentId = authUser.uid;
+      // Generate a more user-friendly, unique-enough ID.
       const userId = `R-${Math.floor(Date.now() / 1000).toString().slice(-6)}`;
 
       const newResident: Resident = {
