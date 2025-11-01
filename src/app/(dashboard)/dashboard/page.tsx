@@ -12,34 +12,37 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
-  const { currentUser, residents, documentRequests } = useAppContext();
+  const { currentUser, residents, documentRequests, isDataLoading } = useAppContext();
   
   const user = currentUser;
 
   const residentInfo = useMemo(() => {
-    if (user?.role === 'Resident' && user.residentId) {
+    if (user?.role === 'Resident' && user.residentId && residents) {
       return residents.find(res => res.id === user.residentId);
     }
     return undefined;
   }, [user, residents]);
   
   const residentRequests = useMemo(() => {
-    if (user?.role === 'Resident' && user.residentId) {
+    if (user?.role === 'Resident' && user.residentId && documentRequests) {
       return documentRequests.filter(req => req.residentId === user.residentId);
     }
     return [];
   }, [user, documentRequests]);
 
   // Common stats
-  const totalRevenue = documentRequests
+  const safeDocumentRequests = documentRequests || [];
+  const safeResidents = residents || [];
+
+  const totalRevenue = safeDocumentRequests
     .filter(req => req.status === 'Released' || req.status === 'Paid')
-    .reduce((sum, req) => sum + req.amount, 0);
-  const approvedRequests = documentRequests.filter(req => ['Approved', 'Paid', 'Released'].includes(req.status)).length;
-  const pendingRequests = documentRequests.filter(req => req.status === 'Pending').length;
-  const pendingPayments = documentRequests.filter(req => req.status === 'Approved').length;
+    .reduce((sum, req) => sum + (req.amount || 0), 0);
+  const approvedRequests = safeDocumentRequests.filter(req => ['Approved', 'Paid', 'Released'].includes(req.status)).length;
+  const pendingRequests = safeDocumentRequests.filter(req => req.status === 'Pending').length;
+  const pendingPayments = safeDocumentRequests.filter(req => req.status === 'Approved').length;
 
 
-  if (!user) {
+  if (!user || isDataLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -99,7 +102,7 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <StatCard
             title="Total Residents"
-            value={residents.length.toString()}
+            value={safeResidents.length.toString()}
             icon={Users}
             description="The total number of registered residents."
           />
@@ -136,7 +139,7 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2">
            <StatCard
             title="Total Residents"
-            value={residents.length.toString()}
+            value={safeResidents.length.toString()}
             icon={Users}
             description="The total number of registered residents."
           />
@@ -194,7 +197,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard
           title="Total Residents"
-          value={residents.length.toString()}
+          value={safeResidents.length.toString()}
           icon={Users}
           description="The total number of registered residents."
         />
