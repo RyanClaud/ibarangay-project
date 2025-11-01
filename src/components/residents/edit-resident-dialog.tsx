@@ -21,6 +21,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription as FormHelperText,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -136,9 +137,12 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
                 <FormItem>
                   <FormLabel>Email Address</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="juan.cruz@example.com" {...field} />
+                    <Input type="email" placeholder="juan.cruz@example.com" {...field} disabled />
                   </FormControl>
-                   <FormMessage />
+                  <FormHelperText>
+                    User emails cannot be changed for security reasons. To change a login email, the user account must be re-created.
+                  </FormHelperText>
+                  <FormMessage />
                 </FormItem>
               )}
             />

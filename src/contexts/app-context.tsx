@@ -12,9 +12,10 @@ import {
   initiateSignOut,
   useDoc,
 } from '@/firebase';
-import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { toast } from '@/hooks/use-toast';
 
 interface AppContextType {
   currentUser: User | null;
@@ -118,11 +119,14 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         // If it fails with "invalid-credential", it might be a resident User ID.
         if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email') {
             console.log("Initial email sign-in failed, trying resident User ID lookup...");
-            const q = query(collection(firestore, "residents"), where("userId", "==", credential), limit(1));
-            const querySnapshot = await getDocs(q);
+            
+            // This is the new, more secure logic.
+            // We directly get the document if the ID matches.
+            const residentRef = doc(firestore, "residents", credential);
+            const residentSnap = await getDoc(residentRef);
 
-            if (!querySnapshot.empty) {
-                const residentDoc = querySnapshot.docs[0].data() as Resident;
+            if (residentSnap.exists()) {
+                const residentDoc = residentSnap.data() as Resident;
                 // Now, try signing in with the fetched email.
                 await signInWithEmailAndPassword(auth, residentDoc.email, password);
                 return; // Success
@@ -228,6 +232,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const newRequest: DocumentRequest = {
         ...request,
         residentId: currentUser.residentId,
+        residentName: currentUser.name,
         id: newId,
         requestDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
         status: 'Pending',
@@ -323,5 +328,3 @@ export function useAppContext() {
   }
   return context;
 }
-
-    
