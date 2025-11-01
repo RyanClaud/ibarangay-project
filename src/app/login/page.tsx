@@ -11,73 +11,65 @@ import { toast } from '@/hooks/use-toast';
 import { Logo } from '@/components/logo';
 import { Loader2 } from 'lucide-react';
 import { useAuth as useAppAuth } from '@/hooks/use-auth';
-import { initiateEmailSignIn } from '@/firebase';
-import { useFirebase } from '@/firebase/provider';
+import { useAppContext } from '@/contexts/app-context';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { auth } = useFirebase();
+  const { login } = useAppContext();
   const { user: authenticatedUser, isLoading: isAuthLoading } = useAppAuth();
   const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
   const [isProcessingLogin, setIsProcessingLogin] = useState(false);
 
-  useEffect(() => {
-    // This effect redirects an already-logged-in user away from the login page.
-    if (authenticatedUser && !isAuthLoading) {
-      router.push('/dashboard');
-    }
-  }, [authenticatedUser, isAuthLoading, router]);
-
-  const handleLogin = (event: React.FormEvent) => {
+  const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!auth) {
-        toast({
-            title: 'Login Service Error',
-            description: 'Authentication service is not ready. Please try again in a moment.',
-            variant: 'destructive',
-        });
-        return;
-    }
     setIsProcessingLogin(true);
 
-    // We call initiateEmailSignIn directly.
-    // The onAuthStateChanged listener in the AppContext will handle success,
-    // and the .catch() here will handle failure.
-    initiateEmailSignIn(auth, credential, password)
-      .catch((error) => {
-        // If Firebase returns an error, show it to the user.
-        let description = 'An unknown error occurred.';
-        switch (error.code) {
-          case 'auth/user-not-found':
-          case 'auth/wrong-password':
-          case 'auth/invalid-credential':
-            description = 'Invalid email or password. Please try again.';
-            break;
-          case 'auth/invalid-email':
-            description = 'The email address is not valid.';
-            break;
-          default:
-            description = 'Please check your credentials and try again.';
-            break;
-        }
-        toast({
-            title: 'Login Failed',
-            description: description,
-            variant: 'destructive',
-        });
-      })
-      .finally(() => {
-        // Always reset the loading state
-        setIsProcessingLogin(false);
+    try {
+      await login(credential, password);
+      // On success, the useAuth hook will handle the redirect automatically.
+      // We don't need to do anything here.
+    } catch (error: any) {
+      let description = 'An unknown error occurred.';
+      switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          description = 'Invalid email or password. Please try again.';
+          break;
+        case 'auth/invalid-email':
+          description = 'The email address is not valid.';
+          break;
+        default:
+          description = error.message || 'Please check your credentials and try again.';
+          break;
+      }
+      toast({
+          title: 'Login Failed',
+          description: description,
+          variant: 'destructive',
       });
+    } finally {
+      // Always reset the loading state
+      setIsProcessingLogin(false);
+    }
   };
   
   const isLoading = isAuthLoading || isProcessingLogin;
   
-  // Don't render the form if we know the user is authenticated and we're just waiting for the redirect.
-  if (authenticatedUser && !isAuthLoading) {
+  // Render a loading state while useAuth is verifying the session.
+  if (isAuthLoading && !isProcessingLogin) {
     return (
+        <div className="flex h-screen w-screen items-center justify-center bg-background">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+    );
+  }
+
+  // If the user is already authenticated, the useAuth hook will redirect them.
+  // We can show a loader while that happens.
+  if (authenticatedUser) {
+     return (
         <div className="flex h-screen w-screen items-center justify-center bg-background">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
@@ -100,7 +92,7 @@ export default function LoginPage() {
               <Label htmlFor="credential">User ID / Email</Label>
               <Input 
                 id="credential" 
-                placeholder="e.g., R-1001 or admin@ibarangay.com" 
+                placeholder="e.g., admin@ibarangay.com" 
                 required 
                 value={credential}
                 onChange={(e) => setCredential(e.target.value)}

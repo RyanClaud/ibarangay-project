@@ -3,37 +3,73 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAppContext } from '@/contexts/app-context';
+import { useUser } from '@/firebase/provider';
 
 export function useAuth() {
-  const { currentUser, isDataLoading } = useAppContext();
+  const { users, isDataLoading: isContextLoading, setCurrentUser } = useAppContext();
+  const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
   const router = useRouter();
   const pathname = usePathname();
+
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Don't run authentication checks on the login page itself
-    if (pathname === '/login') {
-      setIsLoading(false);
-      return;
-    }
+    const isLoginPage = pathname === '/login';
 
-    // While the context is loading user data from auth and firestore, we are in a loading state.
-    if (isDataLoading) {
+    // If Firebase auth is still loading, or the app's data is still loading, we wait.
+    if (isAuthLoading || isContextLoading) {
       setIsLoading(true);
       return;
     }
 
-    // After loading, if there's no user, redirect to login.
-    if (!currentUser) {
-      router.push('/login');
-      // No need to setIsLoading(false) here because the redirect will unmount this component.
+    // If there's no authenticated user from Firebase...
+    if (!firebaseUser) {
+      setCurrentUser(null); // Clear any stale user profile
+      if (!isLoginPage) {
+        // And we are not on the login page, redirect there.
+        router.push('/login');
+      } else {
+        // If we are on the login page, we are done loading.
+        setIsLoading(false);
+      }
       return;
     }
 
-    // If we've finished loading and there is a user, we are no longer loading.
-    setIsLoading(false);
+    // If we have a Firebase user, but the list of users from Firestore isn't ready yet,
+    // we continue to wait.
+    if (!users) {
+      setIsLoading(true);
+      return;
+    }
 
-  }, [currentUser, isDataLoading, router, pathname]);
+    // We have a Firebase user and the list of users from Firestore.
+    // Find the full user profile from our database.
+    const appUser = users.find(u => u.id === firebaseUser.uid);
 
+    if (appUser) {
+      // We found the user profile. Set it globally.
+      setCurrentUser(appUser);
+      if (isLoginPage) {
+        // If we're on the login page, redirect to the dashboard.
+        router.push('/dashboard');
+      } else {
+        // Otherwise, we're done loading.
+        setIsLoading(false);
+      }
+    } else {
+      // This is a critical state: authenticated with Firebase, but no profile in our DB.
+      // This could happen if the user was deleted from Firestore but not Auth.
+      console.error(`Auth user ${firebaseUser.uid} has no matching document in Firestore.`);
+      setCurrentUser(null);
+      if (!isLoginPage) {
+        // If not on the login page, send them there to be safe.
+        router.push('/login');
+      } else {
+        setIsLoading(false);
+      }
+    }
+  }, [firebaseUser, users, isAuthLoading, isContextLoading, pathname, router, setCurrentUser]);
+
+  const { currentUser } = useAppContext();
   return { user: currentUser, isLoading };
 }
