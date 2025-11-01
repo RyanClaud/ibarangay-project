@@ -36,7 +36,7 @@ const residentSchema = z.object({
   lastName: z.string().min(1, 'Last name is required'),
   address: z.string().min(1, 'Address is required'),
   birthdate: z.string().refine((val) => !isNaN(Date.parse(val)), {
-    message: 'Invalid date format. Please use YYYY-MM-DD.',
+    message: 'Invalid date format. Please use MM-dd-yyyy.',
   }),
   householdNumber: z.string().min(1, 'Household number is required'),
 });
@@ -140,7 +140,7 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
                     <FormLabel>Date of Birth</FormLabel>
                      <div className="relative">
                         <FormControl>
-                            <Input placeholder="YYYY-MM-DD" {...field} />
+                            <Input placeholder="MM-dd-yyyy" {...field} />
                         </FormControl>
                         <Popover>
                             <PopoverTrigger asChild>
@@ -155,7 +155,7 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
                                     fromYear={new Date().getFullYear() - 100}
                                     toYear={new Date().getFullYear()}
                                     selected={field.value ? new Date(field.value) : undefined}
-                                    onSelect={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+                                    onSelect={(date) => field.onChange(date ? format(date, 'MM-dd-yyyy') : '')}
                                     disabled={(date) => date > new Date() || date < new Date('1900-01-01')}
                                     initialFocus
                                 />
