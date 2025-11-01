@@ -33,26 +33,21 @@ export default function LoginPage() {
   }, [authenticatedUser, isAuthLoading, router]);
 
 
-  const handleLogin = async (event: React.FormEvent) => {
+  const handleLogin = (event: React.FormEvent) => {
     event.preventDefault();
     setIsProcessingLogin(true);
     
-    try {
-      // The login function in the context now handles the sign-in process.
-      // We don't need to check for a returned user here anymore.
-      await login(credential, password);
-      // The useEffect above will handle the redirect on successful auth state change.
-    } catch (error: any) {
+    login(credential, password).catch((error: any) => {
       console.error(error); // Log the actual error for debugging
       toast({
         title: 'Login Failed',
         description: 'Invalid credentials. Please check your User ID/Email and password.',
         variant: 'destructive',
       });
-       setIsProcessingLogin(false);
-    }
-    // Don't set isProcessingLogin to false here if login is successful,
-    // as the page will redirect. Only set it on failure.
+    }).finally(() => {
+      // Always reset processing state, redirect is handled by useEffect
+      setIsProcessingLogin(false);
+    });
   };
 
   const isLoading = isAuthLoading || isProcessingLogin;
