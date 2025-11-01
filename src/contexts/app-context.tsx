@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { User, Resident, DocumentRequest, DocumentRequestStatus, Role } from '@/lib/types';
-import { users as initialUsers, findUserByCredential } from '@/lib/data';
+import { users as initialUsers } from '@/lib/data';
 import {
   useCollection,
   useFirebase,
@@ -41,11 +41,10 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // Helper function to seed initial users into Firebase Auth and Firestore
 const seedInitialUsers = async (firestore: any, auth: any) => {
   console.log('Checking and seeding initial users if necessary...');
-  const usersRef = collection(firestore, 'users');
 
   for (const user of initialUsers) {
     try {
-      // Check if user exists in Auth
+      // Check if user exists in Auth by fetching sign-in methods for their email
       const signInMethods = await fetchSignInMethodsForEmail(auth, user.email);
       
       if (signInMethods.length === 0) {
@@ -63,17 +62,12 @@ const seedInitialUsers = async (firestore: any, auth: any) => {
         await setDocumentNonBlocking(userDocRef, userData, { merge: true });
         console.log(`User ${user.email} created in Auth and Firestore.`);
       } else {
-        // User exists in Auth, ensure they are in Firestore.
-        // This is a failsafe.
-        const q = query(usersRef, where("email", "==", user.email));
-        const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) {
-          console.warn(`User ${user.email} exists in Auth but not Firestore. Seeding Firestore document.`);
-          // This case is complex because we don't know the UID without signing in.
-          // For this app's purpose, we'll assume the initial seeding works or manual setup is done.
-        }
+        // User already exists in Auth, we can skip creation.
+        // Optional: you could add logic here to ensure their Firestore doc is up-to-date.
+        console.log(`User ${user.email} already exists in Auth. Skipping creation.`);
       }
     } catch (error) {
+      // Catch and log any other errors during seeding
       console.error(`Error seeding user ${user.email}:`, error);
     }
   }
@@ -94,9 +88,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   // 1. Fetch users only after Firebase Auth has confirmed a user is logged in.
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore || isAuthLoading || !firebaseUser) return null; // Don't query if no user or auth is loading
+    if (!firestore || !firebaseUser) return null; // Don't query if no user
     return collection(firestore, 'users');
-  }, [firestore, firebaseUser, isAuthLoading]);
+  }, [firestore, firebaseUser]);
   const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
 
   // 2. Determine the app's current user based on the Auth user and the fetched users list.
@@ -140,28 +134,23 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       if (!querySnapshot.empty) {
         const residentDoc = querySnapshot.docs[0].data() as Resident;
         // Now find the corresponding user account to get the email
-        if(users) {
-            const userAccount = users.find(u => u.residentId === residentDoc.id);
-            if (userAccount) {
-                emailToSignIn = userAccount.email;
-            } else {
-                 throw new Error("No user account associated with that Resident ID.");
-            }
+        const usersQuery = query(collection(firestore, "users"), where("residentId", "==", residentDoc.id));
+        const userQuerySnapshot = await getDocs(usersQuery);
+
+        if (!userQuerySnapshot.empty) {
+            const userAccount = userQuerySnapshot.docs[0].data() as User;
+            emailToSignIn = userAccount.email;
         } else {
-            // This is a fallback if the 'users' collection hasn't loaded yet.
-            // This part of the logic is complex without a fully loaded user list.
-            // For now, we throw an error, but a more robust solution might query the users collection here.
-            throw new Error("User data is not available yet, please try again shortly.");
+             throw new Error("No user account associated with that Resident ID.");
         }
       } else {
-        // If it's not a resident ID and not an email, it might be an admin without an @
-        // but we will primarily rely on email for staff.
         throw new Error("Invalid User ID. Please use your email if you are a staff member.");
       }
     }
 
     initiateEmailSignIn(auth, emailToSignIn, password);
-    return undefined; // Let the auth state listener handle the user update.
+    // Let the auth state listener handle the user update.
+    return undefined; 
   };
 
   const logout = () => {
