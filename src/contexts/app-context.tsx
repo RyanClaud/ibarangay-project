@@ -11,7 +11,8 @@ interface AppContextType {
   logout: () => void;
   residents: Resident[];
   setResidents: (residents: Resident[]) => void;
-  addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl'>) => void;
+  addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => void;
+  updateResident: (resident: Resident) => void;
   documentRequests: DocumentRequest[];
   setDocumentRequests: (requests: DocumentRequest[]) => void;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
@@ -45,7 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCurrentUser(null);
   };
 
-  const addResident = (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl'>) => {
+  const addResident = (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => {
     const newResIdNumber = Math.max(...residents.map(r => parseInt(r.id.replace('RES', ''))), 0) + 1;
     const newResUserIdNumber = Math.max(...residents.map(r => parseInt(r.userId.replace('R-', ''))), 1000) + 1;
 
@@ -53,6 +54,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...newResidentData,
       id: `RES${String(newResIdNumber).padStart(3, '0')}`,
       userId: `R-${newResUserIdNumber}`,
+      address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
       avatarUrl: `https://picsum.photos/seed/${newResIdNumber}/100/100`,
     };
 
@@ -68,6 +70,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     setResidents(prev => [newResident, ...prev]);
     setUsers(prev => [newUser, ...prev]);
+  };
+
+  const updateResident = (updatedResident: Resident) => {
+    setResidents(prev => prev.map(r => r.id === updatedResident.id ? updatedResident : r));
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
@@ -118,6 +124,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       residents,
       setResidents,
       addResident,
+      updateResident,
       documentRequests,
       setDocumentRequests,
       addDocumentRequest,

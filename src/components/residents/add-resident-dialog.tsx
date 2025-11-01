@@ -33,7 +33,7 @@ import { toast } from '@/hooks/use-toast';
 const residentSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  address: z.string().min(1, 'Address is required'),
+  purok: z.string().min(1, 'Purok / Sitio is required'),
   birthdate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: 'Invalid date format. Please use MM-dd-yyyy.',
   }),
@@ -45,7 +45,7 @@ type ResidentFormData = z.infer<typeof residentSchema>;
 interface AddResidentDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl'>) => void;
+  onAddResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => void;
 }
 
 export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResidentDialogProps) {
@@ -54,7 +54,7 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
     defaultValues: {
       firstName: '',
       lastName: '',
-      address: '',
+      purok: '',
       birthdate: '',
       householdNumber: '',
     },
@@ -113,14 +113,14 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
             </div>
             <FormField
               control={form.control}
-              name="address"
+              name="purok"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address</FormLabel>
+                  <FormLabel>Purok / Sitio</FormLabel>
                   <FormControl>
-                    <Input placeholder="Purok 1, Brgy. Mina De Oro" {...field} />
+                    <Input placeholder="e.g., Purok 1 or Sitio Centro" {...field} />
                   </FormControl>
-                  <FormMessage />
+                   <FormMessage />
                 </FormItem>
               )}
             />

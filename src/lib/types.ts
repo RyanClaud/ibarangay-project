@@ -14,6 +14,7 @@ export type Resident = {
   userId: string;
   firstName: string;
   lastName:string;
+  purok: string;
   address: string;
   birthdate: string;
   householdNumber: string;

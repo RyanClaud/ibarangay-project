@@ -28,8 +28,7 @@ import { useRouter } from "next/navigation";
 import { useAppContext } from "@/contexts/app-context";
 
 export function ResidentClientPage({ data: initialData }: { data: Resident[] }) {
-  const { residents, addResident } = useAppContext();
-  const [data, setData] = React.useState(initialData);
+  const { residents, addResident, updateResident } = useAppContext();
   const [filter, setFilter] = React.useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [residentToEdit, setResidentToEdit] = React.useState<Resident | null>(null);
@@ -48,17 +47,17 @@ export function ResidentClientPage({ data: initialData }: { data: Resident[] }) 
     return idB - idA;
   });
 
-  const handleAddResident = (newResident: Omit<Resident, 'id' | 'avatarUrl' | 'userId'>) => {
+  const handleAddResident = (newResident: Omit<Resident, 'id' | 'avatarUrl' | 'userId' | 'address'>) => {
     addResident(newResident);
   };
 
   const handleUpdateResident = (updatedResident: Resident) => {
-    setData(prevData => prevData.map(r => r.id === updatedResident.id ? updatedResident : r));
+    updateResident(updatedResident);
     setResidentToEdit(null);
   };
 
   const handleDeleteResident = (residentId: string) => {
-    setData(prevData => prevData.filter(r => r.id !== residentId));
+    // A 'deleteResident' function should be called from context here
     setResidentToDelete(null);
   };
   

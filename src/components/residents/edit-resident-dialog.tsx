@@ -34,7 +34,7 @@ import { toast } from '@/hooks/use-toast';
 const residentSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  address: z.string().min(1, 'Address is required'),
+  purok: z.string().min(1, 'Purok / Sitio is required'),
   birthdate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: 'Invalid date format. Please use MM-dd-yyyy.',
   }),
@@ -60,7 +60,7 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
       form.reset({
         firstName: resident.firstName,
         lastName: resident.lastName,
-        address: resident.address,
+        purok: resident.purok,
         birthdate: resident.birthdate,
         householdNumber: resident.householdNumber,
       });
@@ -69,8 +69,9 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
 
   const onSubmit = (data: ResidentFormData) => {
     onUpdateResident({
-        ...resident,
-        ...data,
+      ...resident,
+      ...data,
+      address: `${data.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
     });
     toast({
         title: 'Resident Updated',
@@ -120,12 +121,12 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
             </div>
             <FormField
               control={form.control}
-              name="address"
+              name="purok"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address</FormLabel>
+                  <FormLabel>Purok / Sitio</FormLabel>
                   <FormControl>
-                    <Input placeholder="123 Rizal St, Brgy. 1" {...field} />
+                    <Input placeholder="e.g., Purok 1 or Sitio Centro" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -2,7 +2,7 @@ import type { User, Resident, DocumentRequest, Role, DocumentRequestStatus } fro
 
 export const users: User[] = [
   { id: 'USR001', name: 'Admin User', email: 'admin@ibarangay.com', avatarUrl: 'https://picsum.photos/seed/1/100/100', role: 'Admin' },
-  { id: 'USR002', name: 'Juan Dela Cruz', email: 'captain@ibarangay.com', avatarUrl: 'https://picsum.photos/seed/2/100/100', role: 'Barangay Captain' },
+  { id: 'USR002', name: 'Amado Magtibay', email: 'captain@ibarangay.com', avatarUrl: 'https://picsum.photos/seed/2/100/100', role: 'Barangay Captain' },
   { id: 'USR003', name: 'Maria Clara', email: 'secretary@ibarangay.com', avatarUrl: 'https://picsum.photos/seed/3/100/100', role: 'Secretary' },
   { id: 'USR004', name: 'Jose Rizal', email: 'treasurer@ibarangay.com', avatarUrl: 'https://picsum.photos/seed/4/100/100', role: 'Treasurer' },
   // Link resident users to their resident profiles
@@ -11,11 +11,11 @@ export const users: User[] = [
 ];
 
 export let residents: Resident[] = [
-  { id: 'RES001', userId: 'R-1001', firstName: 'Andres', lastName: 'Bonifacio', address: '123 Rizal St, Brgy. 1', birthdate: '1990-01-15', householdNumber: 'HH-001', avatarUrl: 'https://picsum.photos/seed/5/100/100' },
-  { id: 'RES002', userId: 'R-1002', firstName: 'Gabriela', lastName: 'Silang', address: '456 Mabini St, Brgy. 1', birthdate: '1992-03-20', householdNumber: 'HH-002', avatarUrl: 'https://picsum.photos/seed/6/100/100' },
-  { id: 'RES003', userId: 'R-1003', firstName: 'Apolinario', lastName: 'Mabini', address: '789 Luna St, Brgy. 2', birthdate: '1985-07-22', householdNumber: 'HH-003', avatarUrl: 'https://picsum.photos/seed/7/100/100' },
-  { id: 'RES004', userId: 'R-1004', firstName: 'Melchora', lastName: 'Aquino', address: '101 Bonifacio St, Brgy. 2', birthdate: '1988-11-30', householdNumber: 'HH-004', avatarUrl: 'https://picsum.photos/seed/8/100/100' },
-  { id: 'RES005', userId: 'R-1005', firstName: 'Emilio', lastName: 'Aguinaldo', address: '212 Jacinto St, Brgy. 3', birthdate: '1995-05-10', householdNumber: 'HH-005', avatarUrl: 'https://picsum.photos/seed/9/100/100' },
+  { id: 'RES001', userId: 'R-1001', firstName: 'Andres', lastName: 'Bonifacio', purok: 'Purok 1', address: 'Purok 1, Brgy. Mina De Oro, Bongabong, Oriental Mindoro', birthdate: '1990-01-15', householdNumber: 'HH-001', avatarUrl: 'https://picsum.photos/seed/5/100/100' },
+  { id: 'RES002', userId: 'R-1002', firstName: 'Gabriela', lastName: 'Silang', purok: 'Purok 2', address: 'Purok 2, Brgy. Mina De Oro, Bongabong, Oriental Mindoro', birthdate: '1992-03-20', householdNumber: 'HH-002', avatarUrl: 'https://picsum.photos/seed/6/100/100' },
+  { id: 'RES003', userId: 'R-1003', firstName: 'Apolinario', lastName: 'Mabini', purok: 'Sitio Centro', address: 'Sitio Centro, Brgy. Mina De Oro, Bongabong, Oriental Mindoro', birthdate: '1985-07-22', householdNumber: 'HH-003', avatarUrl: 'https://picsum.photos/seed/7/100/100' },
+  { id: 'RES004', userId: 'R-1004', firstName: 'Melchora', lastName: 'Aquino', purok: 'Purok 3', address: 'Purok 3, Brgy. Mina De Oro, Bongabong, Oriental Mindoro', birthdate: '1988-11-30', householdNumber: 'HH-004', avatarUrl: 'https://picsum.photos/seed/8/100/100' },
+  { id: 'RES005', userId: 'R-1005', firstName: 'Emilio', lastName: 'Aguinaldo', purok: 'Sitio Ibaba', address: 'Sitio Ibaba, Brgy. Mina De Oro, Bongabong, Oriental Mindoro', birthdate: '1995-05-10', householdNumber: 'HH-005', avatarUrl: 'https://picsum.photos/seed/9/100/100' },
 ];
 
 const statuses: DocumentRequestStatus[] = ["Pending", "Approved", "Paid", "Released", "Rejected"];
