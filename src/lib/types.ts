@@ -20,7 +20,7 @@ export type Resident = {
   avatarUrl: string;
 };
 
-export type DocumentType = "Barangay Clearance" | "Certificate of Residency" | "Certificate of Indigency";
+export type DocumentType = "Barangay Clearance" | "Certificate of Residency" | "Certificate of Indigency" | "Business Permit" | "Good Moral Character Certificate" | "Solo Parent Certificate";
 
 export type DocumentRequestStatus = "Pending" | "Approved" | "Released" | "Rejected" | "Paid";
 

@@ -87,6 +87,24 @@ export default function CertificatePage() {
                     </p>
                 )}
 
+                {request.documentType === 'Business Permit' && (
+                     <p className="indent-8">
+                        This is to certify that a business under the name of the above person is operating within the jurisdiction of this barangay and has been granted this permit.
+                    </p>
+                )}
+
+                {request.documentType === 'Good Moral Character Certificate' && (
+                     <p className="indent-8">
+                        This is to certify that the person named above is a resident of this barangay and is known to me to be of good moral character and a law-abiding citizen.
+                    </p>
+                )}
+
+                {request.documentType === 'Solo Parent Certificate' && (
+                     <p className="indent-8">
+                        This is to certify that the person named above is a solo parent residing in this barangay, and is entitled to the benefits under Republic Act No. 8972, also known as the "Solo Parents' Welfare Act of 2000".
+                    </p>
+                )}
+
                 <p className="indent-8">
                     Issued this <span className="font-bold">{new Date().toLocaleDateString('en-US', { day: 'numeric' })}</span> day of <span className="font-bold">{new Date().toLocaleDateString('en-US', { month: 'long' })}</span>, <span className="font-bold">{new Date().getFullYear()}</span> at the Office of the Punong Barangay, Barangay 1, District 1, City of Manila, Philippines.
                 </p>

@@ -28,7 +28,7 @@ import { useEffect } from "react";
 
 const formSchema = z.object({
   userId: z.string().min(1, "User ID is required."),
-  documentType: z.enum(["Barangay Clearance", "Certificate of Residency", "Certificate of Indigency"]),
+  documentType: z.enum(["Barangay Clearance", "Certificate of Residency", "Certificate of Indigency", "Business Permit", "Good Moral Character Certificate", "Solo Parent Certificate"]),
 });
 
 interface RequestFormProps {
@@ -63,11 +63,33 @@ export function RequestForm({ resident }: RequestFormProps) {
         return;
     }
 
+    let amount = 50.00;
+    switch (values.documentType) {
+        case 'Barangay Clearance':
+            amount = 50.00;
+            break;
+        case 'Certificate of Residency':
+            amount = 75.00;
+            break;
+        case 'Certificate of Indigency':
+            amount = 0.00;
+            break;
+        case 'Business Permit':
+            amount = 250.00;
+            break;
+        case 'Good Moral Character Certificate':
+            amount = 100.00;
+            break;
+        case 'Solo Parent Certificate':
+            amount = 0.00;
+            break;
+    }
+
     addDocumentRequest({
         residentId: resident.id,
         residentName: `${resident.firstName} ${resident.lastName}`,
         documentType: values.documentType,
-        amount: values.documentType === 'Barangay Clearance' ? 50.00 : 75.00, // Example amount
+        amount: amount,
     });
     
     toast({
@@ -115,6 +137,9 @@ export function RequestForm({ resident }: RequestFormProps) {
                       <SelectItem value="Barangay Clearance">Barangay Clearance</SelectItem>
                       <SelectItem value="Certificate of Residency">Certificate of Residency</SelectItem>
                       <SelectItem value="Certificate of Indigency">Certificate of Indigency</SelectItem>
+                      <SelectItem value="Business Permit">Business Permit</SelectItem>
+                      <SelectItem value="Good Moral Character Certificate">Good Moral Character Certificate</SelectItem>
+                      <SelectItem value="Solo Parent Certificate">Solo Parent Certificate</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
