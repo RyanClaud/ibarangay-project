@@ -90,9 +90,9 @@ export function SidebarNav() {
       <SidebarContent>
         <SidebarMenu>
           {!isClient || !currentUser ? (
-            <div className="flex justify-center p-4">
-              <Loader2 className="animate-spin text-sidebar-foreground" />
-            </div>
+             <div className="flex justify-center p-4">
+               <Loader2 className="animate-spin text-sidebar-foreground" />
+             </div>
           ) : (
             userNavItems.map((item) => (
               <SidebarMenuItem key={item.label}>
