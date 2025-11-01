@@ -22,14 +22,14 @@ interface AppContextType {
   setCurrentUser: (user: User | null) => void;
   logout: () => void;
   residents: Resident[] | null;
-  addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => void;
+  addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => Promise<void>;
   updateResident: (resident: Resident) => void;
   deleteResident: (residentId: string) => void;
   documentRequests: DocumentRequest[] | null;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
   users: User[] | null;
-  addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => void;
+  addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => Promise<void>;
   updateUser: (user: User) => void;
   deleteUser: (userId: string) => void;
   isDataLoading: boolean;
@@ -42,71 +42,59 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const { firestore, auth } = useFirebase();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Gated queries: these will only run when `currentUser` is not null.
-  const usersQuery = useMemoFirebase(() => {
-    if (!firestore || !currentUser) return null;
-    // Only staff should be able to list all users.
-    if (currentUser.role !== 'Resident') {
-      return collection(firestore, 'users');
-    }
-    return null; // Residents should not fetch all users.
+  // --- Staff-specific Queries ---
+  const allUsersQuery = useMemoFirebase(() => {
+    if (!firestore || !currentUser || currentUser.role === 'Resident') return null;
+    return collection(firestore, 'users');
   }, [firestore, currentUser]);
-  
-  const { data: staffUsers, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
+  const { data: allUsers, isLoading: isAllUsersLoading } = useCollection<User>(allUsersQuery);
 
-  // If the user is a resident, we fetch their single user document separately.
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !currentUser?.id || currentUser.role !== 'Resident') return null;
-    return doc(firestore, 'users', currentUser.id);
-  }, [firestore, currentUser?.id, currentUser?.role]);
-
-  const { data: singleUserDoc, isLoading: isSingleUserLoading } = useDoc<User>(userDocRef);
-
-  // Combine the user data based on role
-  const users = useMemo(() => {
-      if (currentUser?.role === 'Resident') {
-          // If a resident is logged in, the `users` array should only contain their own user object.
-          return singleUserDoc ? [singleUserDoc] : [];
-      }
-      // For staff, `staffUsers` from useCollection contains the list of all users (or is null).
-      return staffUsers;
-  }, [currentUser?.role, staffUsers, singleUserDoc]);
-
-
-  // Logic for fetching residents
-  const staffResidentsQuery = useMemoFirebase(() => {
+  const allResidentsQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser || currentUser.role === 'Resident') return null;
     return collection(firestore, 'residents');
   }, [firestore, currentUser]);
-  
-  const { data: staffResidents, isLoading: isStaffResidentsLoading } = useCollection<Resident>(staffResidentsQuery);
+  const { data: allResidents, isLoading: isAllResidentsLoading } = useCollection<Resident>(allResidentsQuery);
 
-  const residentDocRef = useMemoFirebase(() => {
+  // --- Resident-specific Queries ---
+  const singleUserDocRef = useMemoFirebase(() => {
     if (!firestore || !currentUser?.id || currentUser.role !== 'Resident') return null;
-    return doc(firestore, 'residents', currentUser.id);
-  }, [firestore, currentUser?.id, currentUser?.role]);
+    return doc(firestore, 'users', currentUser.id);
+  }, [firestore, currentUser]);
+  const { data: singleUser, isLoading: isSingleUserLoading } = useDoc<User>(singleUserDocRef);
   
-  const { data: singleResidentDoc, isLoading: isSingleResidentLoading } = useDoc<Resident>(residentDocRef);
+  const singleResidentDocRef = useMemoFirebase(() => {
+    if (!firestore || !currentUser?.residentId || currentUser.role !== 'Resident') return null;
+    return doc(firestore, 'residents', currentUser.residentId);
+  }, [firestore, currentUser]);
+  const { data: singleResident, isLoading: isSingleResidentLoading } = useDoc<Resident>(singleResidentDocRef);
+  
+  // --- Combined Data Logic ---
+  const users = useMemo(() => {
+    if (currentUser?.role === 'Resident') {
+      return singleUser ? [singleUser] : [];
+    }
+    return allUsers;
+  }, [currentUser?.role, allUsers, singleUser]);
 
   const residents = useMemo(() => {
     if (currentUser?.role === 'Resident') {
-      return singleResidentDoc ? [singleResidentDoc] : [];
+      return singleResident ? [singleResident] : [];
     }
-    return staffResidents;
-  }, [currentUser?.role, staffResidents, singleResidentDoc]);
-  
+    return allResidents;
+  }, [currentUser?.role, allResidents, singleResident]);
+
+
+  // --- Document Requests Query (works for both roles) ---
   const documentRequestsQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
     if (currentUser.role !== 'Resident') {
-      // For staff, fetch all document requests
       return collection(firestore, 'documentRequests');
     }
-    // For residents, only fetch their own document requests
     return query(collection(firestore, 'documentRequests'), where('residentId', '==', currentUser.id));
   }, [firestore, currentUser]);
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
-  const isDataLoading = !currentUser || isUsersLoading || isSingleUserLoading || isStaffResidentsLoading || isSingleResidentLoading || isRequestsLoading;
+  const isDataLoading = !currentUser || isAllUsersLoading || isSingleUserLoading || isAllResidentsLoading || isSingleResidentLoading || isRequestsLoading;
 
   const login = async (credential: string, password: string) => {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
@@ -116,7 +104,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!credential.includes('@')) {
       const upperCredential = credential.toUpperCase();
       const residentsRef = collection(firestore, 'residents');
-      // This query needs to be allowed by security rules for unauthenticated users
       const q = query(residentsRef, where('userId', '==', upperCredential), limit(1));
   
       try {
@@ -129,10 +116,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
           throw new Error('Resident profile does not have an associated email for login.');
         }
         email = residentDoc.email;
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching resident by User ID:", error);
-        // Re-throw or handle as a login failure
-        throw new Error('Could not verify User ID.');
+        throw new Error(error.message === 'Invalid User ID.' ? error.message : 'Could not verify User ID.');
       }
     }
   
@@ -147,7 +133,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const addResident = async (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => {
-    if (!firestore || !auth) return;
+    if (!firestore || !auth) throw new Error("Firebase services are not available.");
     
     const defaultPassword = 'password';
 
@@ -158,7 +144,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       const batch = writeBatch(firestore);
 
       const residentId = authUser.uid;
-      // Generate a more user-friendly, unique-enough ID.
       const userId = `R-${authUser.uid.slice(0,6).toUpperCase()}`;
 
       const newResident: Resident = {
@@ -199,10 +184,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const residentRef = doc(firestore, 'residents', updatedResident.id);
     updateDocumentNonBlocking(residentRef, updatedResident);
   
-    // Also update the associated user document
     const userRef = doc(firestore, 'users', updatedResident.id);
     updateDocumentNonBlocking(userRef, { 
       name: `${updatedResident.firstName} ${updatedResident.lastName}`,
+      email: updatedResident.email,
     });
   };
 
@@ -256,7 +241,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const addUser = async (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => {
-    if (!firestore || !auth) return;
+    if (!firestore || !auth) throw new Error("Firebase services are not available.");
     
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
