@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Resident } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { AddResidentDialog } from "./add-resident-dialog";
 
 interface ResidentClientPageProps {
   data: Resident[];
@@ -29,13 +30,32 @@ interface ResidentClientPageProps {
 export function ResidentClientPage({ data: initialData }: ResidentClientPageProps) {
   const [data, setData] = React.useState(initialData);
   const [filter, setFilter] = React.useState("");
+  const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
 
   const filteredData = data.filter(
     (resident) =>
       resident.firstName.toLowerCase().includes(filter.toLowerCase()) ||
       resident.lastName.toLowerCase().includes(filter.toLowerCase()) ||
       resident.userId.toLowerCase().includes(filter.toLowerCase())
-  );
+  ).sort((a, b) => {
+    // Sort by id in descending order to show newest first
+    const idA = parseInt(a.id.replace('RES', ''));
+    const idB = parseInt(b.id.replace('RES', ''));
+    return idB - idA;
+  });
+
+  const handleAddResident = (newResident: Omit<Resident, 'id' | 'avatarUrl' | 'userId'>) => {
+    const newIdNumber = Math.max(...data.map(r => parseInt(r.id.replace('RES', ''))), 0) + 1;
+    const newUserIdNumber = Math.max(...data.map(r => parseInt(r.userId.replace('R-', ''))), 1000) + 1;
+
+    const residentToAdd: Resident = {
+      ...newResident,
+      id: `RES${String(newIdNumber).padStart(3, '0')}`,
+      userId: `R-${newUserIdNumber}`,
+      avatarUrl: `https://picsum.photos/seed/${newIdNumber}/100/100`,
+    };
+    setData(prevData => [residentToAdd, ...prevData]);
+  };
 
   return (
     <div className="space-y-4">
@@ -51,7 +71,7 @@ export function ResidentClientPage({ data: initialData }: ResidentClientPageProp
             <FileDown />
             Export
           </Button>
-          <Button>
+          <Button onClick={() => setIsAddDialogOpen(true)}>
             <PlusCircle />
             Add Resident
           </Button>
@@ -119,6 +139,11 @@ export function ResidentClientPage({ data: initialData }: ResidentClientPageProp
           </TableBody>
         </Table>
       </div>
+      <AddResidentDialog
+        isOpen={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
+        onAddResident={handleAddResident}
+      />
     </div>
   );
 }
