@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect, useMemo } from 'react';
 import type { User, Resident, DocumentRequest, DocumentRequestStatus, Role } from '@/lib/types';
 import {
   useCollection,
@@ -10,11 +10,11 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
   initiateSignOut,
-  initiateEmailSignIn,
+  useDoc,
 } from '@/firebase';
 import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
-import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail, deleteUser as deleteAuthUser, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 interface AppContextType {
   currentUser: User | null;
@@ -42,8 +42,36 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Gated queries: these will only run when `currentUser` is not null.
-  const usersQuery = useMemoFirebase(() => (firestore && currentUser ? collection(firestore, 'users') : null), [firestore, currentUser]);
-  const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore || !currentUser) return null;
+    // Only staff should be able to list all users.
+    if (currentUser.role !== 'Resident') {
+      return collection(firestore, 'users');
+    }
+    return null; // Residents should not fetch all users.
+  }, [firestore, currentUser]);
+  
+  const { data: staffUsers, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
+
+  // If the user is a resident, we fetch their single user document separately.
+  const userDocRef = useMemoFirebase(() => {
+      if (!firestore || !currentUser || currentUser.role !== 'Resident') return null;
+      return doc(firestore, 'users', currentUser.id);
+  }, [firestore, currentUser]);
+
+  const { data: residentUserDoc, isLoading: isResidentUserLoading } = useDoc<User>(userDocRef);
+
+  // Combine the user data based on role
+  const users = useMemo(() => {
+      if (currentUser?.role === 'Resident') {
+          // If a resident is logged in, the `users` array should only contain their own user object.
+          // The useDoc hook `residentUserDoc` already fetches just this one document.
+          return residentUserDoc ? [residentUserDoc] : [];
+      }
+      // For staff, `staffUsers` from useCollection contains the list of all users (or is null).
+      return staffUsers;
+  }, [currentUser?.role, staffUsers, residentUserDoc]);
+
 
   const residentsQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
@@ -51,8 +79,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (currentUser.role !== 'Resident') {
       return collection(firestore, 'residents');
     }
-    // Residents don't need to see the full list of other residents.
-    // We can fetch their own profile specifically if needed, but not with useCollection on the whole set.
+    // Residents should fetch their own profile specifically using their ID.
     return query(collection(firestore, 'residents'), where('id', '==', currentUser.id));
   }, [firestore, currentUser]);
   const { data: residents, isLoading: isResidentsLoading } = useCollection<Resident>(residentsQuery);
@@ -68,13 +95,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   }, [firestore, currentUser]);
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
-  const isDataLoading = !currentUser || isUsersLoading || isResidentsLoading || isRequestsLoading;
+  const isDataLoading = !currentUser || isUsersLoading || isResidentsLoading || isRequestsLoading || isResidentUserLoading;
 
   const login = async (credential: string, password: string) => {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
-
-    // The logic is now simplified: just try to sign in with email and password.
-    // The `addResident` flow ensures residents also have a standard email login.
     await signInWithEmailAndPassword(auth, credential, password);
   };
 
@@ -90,7 +114,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const defaultPassword = 'password';
 
     try {
-      // Step 1: Create the user in Firebase Authentication with the provided email
       const userCredential = await createUserWithEmailAndPassword(auth, newResidentData.email, defaultPassword);
       const authUser = userCredential.user;
       
@@ -99,11 +122,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       const residentId = authUser.uid;
       const userId = `R-${Math.floor(Date.now() / 1000).toString().slice(-6)}`;
 
-      // Step 2: Create the resident document in /residents collection
       const newResident: Resident = {
         ...newResidentData,
-        id: residentId, // Use the auth UID as the resident document ID
-        userId: userId, // Keep a human-readable ID
+        id: residentId, 
+        userId: userId, 
         address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
         avatarUrl: `https://picsum.photos/seed/${residentId}/100/100`,
         email: newResidentData.email,
@@ -111,7 +133,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       const residentRef = doc(firestore, 'residents', residentId);
       batch.set(residentRef, newResident);
 
-      // Step 3: Create the user document in /users collection
       const newUser: User = {
         id: residentId,
         name: `${newResidentData.firstName} ${newResidentData.lastName}`,
@@ -123,7 +144,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       const userRef = doc(firestore, 'users', residentId);
       batch.set(userRef, newUser);
 
-      // Step 4: Commit all writes at once
       await batch.commit();
 
     } catch (error: any) {
@@ -140,7 +160,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const residentRef = doc(firestore, 'residents', updatedResident.id);
     updateDocumentNonBlocking(residentRef, updatedResident);
 
-    // Also update the name in the corresponding user document
     const userRef = doc(firestore, 'users', updatedResident.id);
     updateDocumentNonBlocking(userRef, { name: `${updatedResident.firstName} ${updatedResident.lastName}` });
   };
@@ -184,11 +203,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!firestore || !auth) return;
     
     try {
-      // Step 1: Create the user in Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
       const authUser = userCredential.user;
       
-      // Step 2: Create the user document in Firestore
       const newUser: User = {
         ...user,
         id: authUser.uid,
@@ -208,7 +225,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const updateUser = (updatedUser: User) => {
     if (!firestore) return;
     const userRef = doc(firestore, 'users', updatedUser.id);
-    // Do not update email from here as it's a sensitive operation
     const { email, ...rest } = updatedUser;
     updateDocumentNonBlocking(userRef, rest);
   };
