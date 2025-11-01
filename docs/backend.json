@@ -1,5 +1,47 @@
 {
   "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user account in the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user, used for login for non-residents.",
+          "format": "email"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "URL for the user's avatar image.",
+          "format": "uri"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user in the system.",
+          "enum": [
+            "Admin",
+            "Barangay Captain",
+            "Secretary",
+            "Treasurer",
+            "Resident"
+          ]
+        },
+        "residentId": {
+          "type": "string",
+          "description": "Optional reference to a Resident entity if the user is a resident."
+        }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
     "Resident": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Resident",
@@ -233,6 +275,22 @@
   "firestore": {
     "structure": [
       {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user accounts. Includes roles and optional link to resident profiles.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
         "path": "/residents/{residentId}",
         "definition": {
           "entityName": "Resident",
@@ -329,6 +387,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to support the iBarangay system's requirements for resident management, document requests, payments, and role-based access. The structure prioritizes authorization independence by denormalizing relevant data, ensuring that security rules can be evaluated without requiring complex `get()` calls. It uses structural segregation to maintain a homogeneous security posture within collections and leverages consistent access modeling patterns for clarity and maintainability.\n\n1.  **Authorization Independence:** The `Resident` document includes the `userId` which facilitates direct association of document requests to residents. The `DocumentRequest` collection includes `residentId`, payment status, and other relevant details, which are used for authorization rules without needing to `get()` data from parent documents. The system avoid complex claims and allows direct referencing using `request.auth.uid`.\n2.  **Structural Segregation:** Each top-level collection (`residents`, `documentRequests`, `payments`, `officials`, `barangayConfig`) contains documents with similar security requirements. The use of subcollections under `/users/{userId}` is deliberately avoided in favor of denormalization within the root-level collections to maintain scalability and prevent authorization complexity. The structure adheres to homogeneous security needs.\n3.  **Access Modeling:**\n    *   **Path-Based Ownership:** User-specific data (like `DocumentRequest` history) could potentially be stored under `/users/{userId}/documentRequests/{documentRequestId}`. However, given the need for reporting and aggregated views across all residents, the root-level `documentRequests` collection is favored, with denormalization of `residentId` for filtering and authorization. Residents are stored in the `/residents` collection, with their `userId` stored as a field in the document.\n    *   **Global Roles (DBAC):** While not explicitly defined in the entities, global roles (e.g., Admin) are managed via existence checks in dedicated collections like `/roles_admin/{uid}`. This is not reflected in the provided entities but represents best practice for role management.\n\nThe structure supports QAPs by:\n\n*   Segregating data with different access needs into separate collections.\n*   Using denormalization to enable secure `list` operations based on the `residentId` in the `documentRequests` collection."
+    "reasoning": "The Firestore data structure is designed to support the iBarangay system's requirements for resident management, document requests, payments, and role-based access. The structure prioritizes authorization independence by denormalizing relevant data, ensuring that security rules can be evaluated without requiring complex `get()` calls. It uses structural segregation to maintain a homogeneous security posture within collections and leverages consistent access modeling patterns for clarity and maintainability.\n\n1.  **Authorization Independence:** The `Resident` document includes the `userId` which facilitates direct association of document requests to residents. The `DocumentRequest` collection includes `residentId`, payment status, and other relevant details, which are used for authorization rules without needing to `get()` data from parent documents. The system avoid complex claims and allows direct referencing using `request.auth.uid`.\n2.  **Structural Segregation:** Each top-level collection (`users`, `residents`, `documentRequests`, `payments`, `officials`, `barangayConfig`) contains documents with similar security requirements. The use of subcollections under `/users/{userId}` is deliberately avoided in favor of denormalization within the root-level collections to maintain scalability and authorization complexity. The structure adheres to homogeneous security needs.\n3.  **Access Modeling:**\n    *   **Path-Based Ownership:** User-specific data (like `DocumentRequest` history) could potentially be stored under `/users/{userId}/documentRequests/{documentRequestId}`. However, given the need for reporting and aggregated views across all residents, the root-level `documentRequests` collection is favored, with denormalization of `residentId` for filtering and authorization. Residents are stored in the `/residents` collection, with their `userId` stored as a field in the document.\n    *   **Global Roles (DBAC):** While not explicitly defined in the entities, global roles (e.g., Admin) are managed via existence checks in dedicated collections like `/roles_admin/{uid}`. This is not reflected in the provided entities but represents best practice for role management.\n\nThe structure supports QAPs by:\n\n*   Segregating data with different access needs into separate collections.\n*   Using denormalization to enable secure `list` operations based on the `residentId` in the `documentRequests` collection."
   }
 }

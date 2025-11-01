@@ -4,6 +4,7 @@
  *               while also providing role-based access for barangay officials and administrators.
  *
  * Data Structure:
+ * - /users/{userId}: Stores user accounts.
  * - /residents/{residentId}: Stores resident profiles, with userId for authentication.
  * - /documentRequests/{documentRequestId}: Stores document requests, linked to residents via residentId.
  * - /payments/{paymentId}: Stores payment information for document requests.
@@ -12,6 +13,7 @@
  * - /roles_admin/{userId}: Manages admin roles based on document existence.
  *
  * Key Security Decisions:
+ * - Authenticated users can read the list of users.
  * - Residents can only read/write their own resident profile.
  * - Residents can only create document requests for themselves.
  * - Listing all residents is disallowed to protect privacy.
@@ -60,6 +62,20 @@ service cloud.firestore {
      */
     function isAdmin() {
       return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+    
+    /**
+     * @description Rules for the /users/{userId} collection.
+     * @path /users/{userId}
+     * @allow (get) Authenticated users can read user profiles.
+     * @allow (list) Authenticated users can list all users.
+     * @allow (create) Admins can create new users.
+     * @allow (update) Admins can update users.
+     * @allow (delete) Admins can delete users.
+     */
+    match /users/{userId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
 
     /**
