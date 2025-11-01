@@ -8,58 +8,52 @@ export function OfficialLogo({ className }: { className?: string }) {
     <div className={cn("relative", className)}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 800 800"
+        viewBox="0 0 1000 1000"
         className="object-contain w-full h-full"
         aria-label="Official Seal of Bongabong, Oriental Mindoro"
       >
-        <circle cx="400" cy="400" r="380" fill="#fff" stroke="#000" strokeWidth="4" />
-        <circle cx="400" cy="400" r="320" fill="none" stroke="#006400" strokeWidth="60" />
-        <circle cx="400" cy="400" r="250" fill="#fff" stroke="#ffd700" strokeWidth="4" />
-        
-        <text 
-            x="400" 
-            y="130" 
-            fontFamily="Arial, sans-serif" 
-            fontSize="50" 
-            fill="#000" 
-            textAnchor="middle" 
-            fontWeight="bold">
-            SAGISAG NG BAYAN NG BONGABONG
-        </text>
-        <text 
-            x="400" 
-            y="720" 
-            fontFamily="Arial, sans-serif" 
-            fontSize="50" 
-            fill="#000" 
-            textAnchor="middle" 
-            fontWeight="bold">
-            LALAWIGAN NG SILANGANG MINDORO
-        </text>
-        
-        <path d="M 250,400 a 150,150 0 1,1 300,0 a 150,150 0 1,1 -300,0" fill="#87ceeb" />
-        
-        <polygon points="400,200 280,350 520,350" fill="#228b22" />
-        <polygon points="400,600 280,450 520,450" fill="#deb887" />
-        
-        <text x="400" y="310" fontSize="30" textAnchor="middle" fill="#fff" fontWeight="bold">1927</text>
-        
-        <path d="M 350,450 L 450,450 L 400,550 Z" fill="#a52a2a" />
-        
-        <text x="400" y="420" fontSize="120" textAnchor="middle" fill="#ffd700" fontWeight="bold">B</text>
+        <circle cx="500" cy="500" r="490" fill="#00652e"/>
+        <circle cx="500" cy="500" r="450" fill="white" stroke="#00652e" strokeWidth="2"/>
+        <circle cx="500" cy="500" r="390" fill="none" stroke="#fec93e" strokeWidth="120"/>
 
-        <g transform="translate(140, 140)">
-            <path d="M0,0-5,5M5,0,0,5" stroke="#ffd700" strokeWidth="8"/>
+        <defs>
+            <path id="circlePath" d="M 250,500 A 250,250 0 1,1 750,500 A 250,250 0 1,1 250,500" fill="transparent" />
+        </defs>
+        
+        <text fill="#00652e" fontSize="70" fontWeight="bold" letterSpacing="4">
+            <textPath href="#circlePath" startOffset="50%" textAnchor="middle">
+                BAYAN NG BONGABONG
+            </textPath>
+        </text>
+
+        <text fill="#00652e" fontSize="50" fontWeight="bold" letterSpacing="2">
+            <textPath href="#circlePath" startOffset="0%" textAnchor="middle" transform="rotate(180 500 500) translate(-1000, -1000) scale(-1, -1)">
+                LALAWIGAN NG SILANGANG MINDORO
+            </textPath>
+        </text>
+        
+        <circle cx="500" cy="500" r="280" fill="white" stroke="#00652e" strokeWidth="2"/>
+        
+        <path d="M500 240 L700 450 L300 450 Z" fill="#00a358" stroke="black" strokeWidth="2"/>
+        <text x="500" y="380" textAnchor="middle" fill="white" fontSize="40" fontWeight="bold">Bundok</text>
+        
+        <path d="M300 450 H 700 V 750 H 300 Z" fill="#75d1f5" stroke="black" strokeWidth="2"/>
+        <path d="M300 750 Q 500 650 700 750 H 300 Z" fill="#fec93e"/>
+        <text x="500" y="550" textAnchor="middle" fill="black" fontSize="40" fontWeight="bold">Palayan at Ilog</text>
+
+        <text x="500" y="680" textAnchor="middle" fill="black" fontSize="100" fontWeight="bold">B</text>
+
+        <text x="500" y="290" textAnchor="middle" fill="black" fontSize="30" fontWeight="bold">1927</text>
+
+        <g fill="#fec93e" stroke="black" strokeWidth="2">
+            <path d="M150 150 L180 180 L150 210 L120 180 Z"/>
+            <path d="M850 150 L880 180 L850 210 L820 180 Z"/>
+            <path d="M150 850 L180 820 L150 790 L120 820 Z"/>
+            <path d="M850 850 L880 820 L850 790 L820 820 Z"/>
         </g>
-         <g transform="translate(660, 140)">
-            <path d="M0,0-5,5M5,0,0,5" stroke="#ffd700" strokeWidth="8"/>
-        </g>
-         <g transform="translate(140, 660)">
-            <path d="M0,0-5,5M5,0,0,5" stroke="#ffd700" strokeWidth="8"/>
-        </g>
-         <g transform="translate(660, 660)">
-            <path d="M0,0-5,5M5,0,0,5" stroke="#ffd700" strokeWidth="8"/>
-        </g>
+
+        <text x="500" y="940" textAnchor="middle" fill="white" fontSize="50" fontWeight="bold">OPISYAL NA SAGISAG</text>
+
       </svg>
     </div>
   );
