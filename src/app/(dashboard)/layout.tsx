@@ -9,12 +9,12 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar className="no-print">
         <SidebarNav />
       </Sidebar>
       <SidebarInset>
         <div className="flex flex-col h-full">
-          <Header />
+          <Header className="no-print" />
           <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
             {children}
           </main>

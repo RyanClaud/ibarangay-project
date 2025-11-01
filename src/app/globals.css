@@ -100,3 +100,15 @@
     }
   }
 }
+
+@media print {
+  body {
+    background: white;
+  }
+  .no-print {
+    display: none;
+  }
+  main {
+    padding: 0;
+  }
+}

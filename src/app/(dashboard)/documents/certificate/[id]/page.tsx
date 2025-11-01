@@ -46,7 +46,7 @@ export default function CertificatePage() {
 
   return (
     <>
-        <div className="p-4 sm:p-6 md:p-8 space-y-4 bg-background print:hidden">
+        <div className="p-4 sm:p-6 md:p-8 space-y-4 bg-background no-print">
             <Button variant="outline" onClick={() => router.back()}>
                 <ArrowLeft className="mr-2"/>
                 Back
@@ -54,7 +54,7 @@ export default function CertificatePage() {
             <h1 className="text-2xl font-bold font-headline">Certificate Preview</h1>
             <p className="text-muted-foreground">This is a preview of the certificate. Click the print button to get a physical copy.</p>
         </div>
-        <div className="bg-white text-black max-w-4xl mx-auto p-10 border-4 border-primary shadow-2xl my-8 print:shadow-none print:border-none print:my-0 relative" id="certificate">
+        <div className="bg-white text-black max-w-4xl mx-auto p-10 border-4 border-primary shadow-2xl my-8 print:shadow-none print:border-none print:my-0 print:mx-0 print:max-w-full print:p-0 relative" id="certificate">
             <div className="absolute inset-0 flex items-center justify-center z-0 opacity-10">
                 <Logo className="size-[400px] text-primary" />
             </div>
@@ -129,12 +129,12 @@ export default function CertificatePage() {
                     </div>
                 </footer>
             </div>
-             <div className="absolute bottom-8 right-8 print:hidden z-20">
+             <div className="absolute bottom-8 right-8 no-print z-20">
                 <Button onClick={handlePrint} size="lg">
                     <Printer className="mr-2" /> Print Certificate
                 </Button>
             </div>
-             <p className="absolute bottom-8 left-8 text-xs text-gray-400 print:hidden z-20">
+             <p className="absolute bottom-8 left-8 text-xs text-gray-400 no-print z-20">
                 Tracking No: {request.trackingNumber} | Not a valid document without the official barangay seal.
             </p>
         </div>
