@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useEffect, useState } from "react";
@@ -12,79 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserManagementClientPage } from "@/components/users/user-management-client-page";
 import { useFirebase } from "@/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { ChangePasswordForm } from "@/components/account/change-password-form";
 import { useAppContext } from "@/contexts/app-context";
 import { ResidentSettings } from "@/components/account/resident-settings";
-
-function ProfilePhotoCard() {
-    const { currentUser, updateUser } = useAppContext();
-    const { storage } = useFirebase();
-    const [isSaving, setIsSaving] = useState(false);
-    const [avatarFile, setAvatarFile] = useState<File | null>(null);
-    const [avatarPreview, setAvatarPreview] = useState<string | null>(currentUser?.avatarUrl || null);
-
-    useEffect(() => {
-        if (currentUser?.avatarUrl) {
-            setAvatarPreview(currentUser.avatarUrl);
-        }
-    }, [currentUser]);
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files && event.target.files[0]) {
-            const file = event.target.files[0];
-            setAvatarFile(file);
-            setAvatarPreview(URL.createObjectURL(file));
-        }
-    };
-
-    const handleSave = async () => {
-        if (!currentUser || !avatarFile || !storage) return;
-        setIsSaving(true);
-        try {
-            const storageRef = ref(storage, `profile-pictures/${currentUser.id}/${avatarFile.name}`);
-            const uploadResult = await uploadBytes(storageRef, avatarFile);
-            const avatarUrl = await getDownloadURL(uploadResult.ref);
-            
-            await updateUser({ id: currentUser.id, avatarUrl });
-
-            toast({ title: "Profile Picture Updated", description: "Your new picture has been saved." });
-            setAvatarFile(null);
-        } catch (error: any) {
-            console.error("Error saving profile picture:", error);
-            toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Profile Picture</CardTitle>
-                <CardDescription>Update your profile picture.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="avatar">Your Picture</Label>
-                    <div className="flex items-center gap-4">
-                        {avatarPreview && <Image src={avatarPreview} alt="Avatar" width={64} height={64} className="rounded-full bg-muted object-cover" unoptimized />}
-                        <Input id="avatar" type="file" onChange={handleFileChange} accept="image/*" />
-                    </div>
-                </div>
-            </CardContent>
-            <CardFooter>
-                <Button onClick={handleSave} disabled={isSaving || !avatarFile}>
-                    {isSaving && <Loader2 className="mr-2 animate-spin" />}
-                    Save Picture
-                </Button>
-            </CardFooter>
-        </Card>
-    );
-}
 
 
 function AdminSettings() {
@@ -144,7 +75,9 @@ function AdminSettings() {
     try {
       if (newSealFile) {
         console.log("Uploading new seal file...");
-        const storageRef = ref(storage, `barangay-seals/${new Date().toISOString()}-${newSealFile.name}`);
+        const { getStorage, ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+        const storageInstance = getStorage();
+        const storageRef = ref(storageInstance, `barangay-seals/${new Date().toISOString()}-${newSealFile.name}`);
         const uploadResult = await uploadBytes(storageRef, newSealFile);
         uploadedLogoUrl = await getDownloadURL(uploadResult.ref);
         console.log("Upload complete, URL:", uploadedLogoUrl);
@@ -221,7 +154,6 @@ function AdminSettings() {
       </TabsContent>
       <TabsContent value="account">
           <div className="grid gap-6">
-            <ProfilePhotoCard />
             <ChangePasswordForm />
           </div>
       </TabsContent>

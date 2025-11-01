@@ -13,7 +13,6 @@ import {
   useDoc,
 } from '@/firebase';
 import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs, limit, updateDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
@@ -31,7 +30,7 @@ interface AppContextType {
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
   users: User[] | null;
   addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => Promise<void>;
-  updateUser: (user: User | Partial<User>) => Promise<void>;
+  updateUser: (dataToUpdate: Partial<User> & { id: string }) => Promise<void>;
   deleteUser: (userId: string) => void;
   isDataLoading: boolean;
   login: (credential: string, password: string) => Promise<void>;
@@ -283,10 +282,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateUser = async (user: User | Partial<User>) => {
-    if (!firestore || !user.id) return;
-    const userRef = doc(firestore, 'users', user.id);
-    await updateDoc(userRef, user);
+  const updateUser = async (dataToUpdate: Partial<User> & { id: string }) => {
+    if (!firestore || !dataToUpdate.id) return;
+    const userRef = doc(firestore, 'users', dataToUpdate.id);
+    await updateDoc(userRef, dataToUpdate);
   };
 
   const deleteUser = (userId: string) => {

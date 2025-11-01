@@ -27,9 +27,6 @@ import { useAppContext } from '@/contexts/app-context';
 import { useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { Resident } from '@/lib/types';
-import Image from 'next/image';
-import { useFirebase } from '@/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
 const profileSchema = z.object({
@@ -41,10 +38,7 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export function EditProfileForm() {
   const { currentUser, residents, updateResident } = useAppContext();
-  const { storage } = useFirebase();
   const [isSaving, setIsSaving] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const resident = useMemo(() => {
     if (currentUser?.residentId && residents) {
@@ -67,41 +61,26 @@ export function EditProfileForm() {
         purok: resident.purok,
         householdNumber: resident.householdNumber,
       });
-      setAvatarPreview(resident.avatarUrl);
     }
   }, [resident, form]);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
-    }
-  };
-
   const onSubmit = async (data: ProfileFormData) => {
-    if (!resident || !storage) {
-        toast({ title: "Error", description: "Resident profile not found or storage not available.", variant: "destructive" });
+    if (!resident) {
+        toast({ title: "Error", description: "Resident profile not found.", variant: "destructive" });
         return;
     }
     setIsSaving(true);
     try {
-      const dataToUpdate: Partial<Resident> = { ...data };
-
-      if (avatarFile) {
-        const storageRef = ref(storage, `profile-pictures/${resident.id}/${avatarFile.name}`);
-        const uploadResult = await uploadBytes(storageRef, avatarFile);
-        dataToUpdate.avatarUrl = await getDownloadURL(uploadResult.ref);
-      }
-      
-      dataToUpdate.address = `${data.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`;
+      const dataToUpdate: Partial<Resident> = { 
+        ...data,
+        address: `${data.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
+      };
 
       await updateResident(resident.id, dataToUpdate);
       toast({
         title: 'Profile Updated',
         description: 'Your personal information has been saved.',
       });
-      setAvatarFile(null);
     } catch (error: any) {
       toast({
         title: 'Failed to Update Profile',
@@ -137,16 +116,6 @@ export function EditProfileForm() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-                <FormLabel>Profile Picture</FormLabel>
-                <div className="flex items-center gap-4">
-                    {avatarPreview && (
-                        <Image src={avatarPreview} alt="Avatar Preview" width={64} height={64} className="rounded-full bg-muted object-cover" unoptimized/>
-                    )}
-                    <Input type="file" accept="image/*" onChange={handleAvatarChange} />
-                </div>
-            </div>
-
              <div className="grid grid-cols-2 gap-4">
                  <FormField
                   control={form.control}
