@@ -99,29 +99,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const login = async (credential: string, password: string) => {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
   
-    let email = credential;
-    // Check if the credential is a User ID (e.g., "R-XXXXXX") and not an email
-    if (!credential.includes('@')) {
-      const upperCredential = credential.toUpperCase();
-      const residentsRef = collection(firestore, 'residents');
-      const q = query(residentsRef, where('userId', '==', upperCredential), limit(1));
-  
-      try {
-        const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) {
-          throw new Error('Invalid User ID.');
-        }
-        const residentDoc = querySnapshot.docs[0].data() as Resident;
-        if (!residentDoc.email) {
-          throw new Error('Resident profile does not have an associated email for login.');
-        }
-        email = residentDoc.email;
-      } catch (error: any) {
-        console.error("Error fetching resident by User ID:", error);
-        throw new Error(error.message === 'Invalid User ID.' ? error.message : 'Could not verify User ID.');
-      }
-    }
-  
+    const email = credential;
     // Attempt to sign in with the determined email
     await signInWithEmailAndPassword(auth, email, password);
   };

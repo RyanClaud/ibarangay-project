@@ -89,10 +89,10 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="credential">Email or User ID</Label>
+              <Label htmlFor="credential">Email</Label>
               <Input 
                 id="credential" 
-                placeholder="e.g., admin@ibarangay.com or R-1001" 
+                placeholder="e.g., admin@ibarangay.com" 
                 required 
                 value={credential}
                 onChange={(e) => setCredential(e.target.value)}
