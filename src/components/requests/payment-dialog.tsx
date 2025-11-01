@@ -47,7 +47,7 @@ export function PaymentDialog({ isOpen, onClose, request }: PaymentDialogProps) 
                 <p className="text-sm text-muted-foreground">Account Name: Juan Dela Cruz</p>
             </div>
             <div className="rounded-lg border bg-muted p-4 space-y-2">
-                <p className="text-sm text-muted-foreground">Your Reference Number:</p>
+                <p className="text-sm text-muted-foreground">Your Reference Number (Same as Tracking No.):</p>
                 <div className="flex items-center justify-between gap-4">
                     <p className="font-mono text-lg font-semibold">{request.referenceNumber}</p>
                     <Button variant="ghost" size="icon" onClick={() => handleCopy(request.referenceNumber)}>

@@ -127,7 +127,7 @@ export function PaymentsClientPage() {
                     <div className="flex gap-2">
                       <FormControl>
                         <Input
-                          placeholder="IBGY-XXXX-XXXX"
+                          placeholder="e.g., IBGY-240723001"
                           {...field}
                           disabled={isLoading}
                         />
