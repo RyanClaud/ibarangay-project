@@ -16,7 +16,7 @@
  * - Authenticated users can read the list of users.
  * - Residents can only read/write their own resident profile.
  * - Residents can only create document requests for themselves.
- * - Listing all residents is disallowed to protect privacy.
+ * - Listing all residents is disallowed for residents to protect privacy, but allowed for staff.
  * - Admins (users with a document in /roles_admin/{userId}) have elevated privileges.
  * - BarangayConfig is publicly readable but only writable by admins.
  *
@@ -92,12 +92,12 @@ service cloud.firestore {
      * @principle Enforces document ownership for reads and writes.
      */
     match /residents/{residentId} {
-      allow get: if isOwner(residentId);
-      allow list: if false; // Prevent listing all residents for privacy
+      allow get: if isOwner(residentId) || isAdmin();
+      allow list: if isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'Resident';
 
       allow create: if isOwner(residentId) && request.resource.data.userId == residentId;
-      allow update: if isExistingOwner(residentId) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isExistingOwner(residentId);
+      allow update: if isExistingOwner(residentId) || isAdmin();
+      allow delete: if isExistingOwner(residentId) || isAdmin();
     }
 
     /**
@@ -116,12 +116,16 @@ service cloud.firestore {
      * @principle Enforces document ownership for writes, and allows residents to read/write their own document requests.
      */
     match /documentRequests/{documentRequestId} {
-      allow get: if isSignedIn() && resource.data.residentId == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.residentId == request.auth.uid;
+      allow get, list: if isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'Resident' 
+        || resource.data.residentId == request.auth.uid
+      );
 
       allow create: if isSignedIn() && request.resource.data.residentId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.residentId == request.auth.uid;
-      allow delete: if isSignedIn() && resource.data.residentId == request.auth.uid;
+      allow update, delete: if isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'Resident'
+        || resource.data.residentId == request.auth.uid
+      );
     }
 
     /**
