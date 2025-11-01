@@ -12,17 +12,18 @@ import { toast } from '@/hooks/use-toast';
 import { Logo } from '@/components/logo';
 import { Loader2 } from 'lucide-react';
 import { useAuth as useAppAuth } from '@/hooks/use-auth';
+import { initiateEmailSignIn } from '@/firebase';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAppContext();
+  const { auth } = useAppContext().useFirebase();
   const { user: authenticatedUser, isLoading: isAuthLoading } = useAppAuth();
   const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
   const [isProcessingLogin, setIsProcessingLogin] = useState(false);
 
   useEffect(() => {
-    // This effect now ONLY handles redirecting an already-logged-in user away from the login page.
+    // This effect redirects an already-logged-in user away from the login page.
     if (authenticatedUser && !isAuthLoading) {
       router.push('/dashboard');
     }
@@ -30,37 +31,49 @@ export default function LoginPage() {
 
   const handleLogin = (event: React.FormEvent) => {
     event.preventDefault();
-    setIsProcessingLogin(true);
-
-    try {
-      // The login function initiates the Firebase sign-in process.
-      // The redirect on success is handled by the useEffect above.
-      login(credential, password);
-    } catch (error) {
-      // This will likely not catch async auth errors, but is good practice.
-      console.error(error);
-      toast({
-        title: 'Login Failed',
-        description: 'An unexpected error occurred. Please try again.',
-        variant: 'destructive',
-      });
-      setIsProcessingLogin(false);
-    }
-    
-    // Set a timeout to reset the button if auth state change is slow or fails.
-    // This prevents the button from getting stuck in a loading state.
-    setTimeout(() => {
-      setIsProcessingLogin(false);
-      // We can also add a toast here for a failed login after a timeout
-      // This is a simple way to give feedback without complex state management
-      if (!authenticatedUser) {
+    if (!auth) {
         toast({
-            title: 'Login Failed',
-            description: 'Please check your credentials and try again.',
+            title: 'Login Service Error',
+            description: 'Authentication service is not ready. Please try again in a moment.',
             variant: 'destructive',
         });
-      }
-    }, 5000);
+        return;
+    }
+    setIsProcessingLogin(true);
+
+    // We call initiateEmailSignIn directly, which is non-blocking.
+    // We add a listener to see if it succeeded or failed.
+    initiateEmailSignIn(auth, credential, password)
+      .then(() => {
+        // Don't do anything on success here.
+        // The onAuthStateChanged listener in the AppContext will handle the redirect.
+      })
+      .catch((error) => {
+        // If Firebase returns an error, show it to the user.
+        let description = 'An unknown error occurred.';
+        switch (error.code) {
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+          case 'auth/invalid-credential':
+            description = 'Invalid email or password. Please try again.';
+            break;
+          case 'auth/invalid-email':
+            description = 'The email address is not valid.';
+            break;
+          default:
+            description = 'Please check your credentials and try again.';
+            break;
+        }
+        toast({
+            title: 'Login Failed',
+            description: description,
+            variant: 'destructive',
+        });
+      })
+      .finally(() => {
+        // Always reset the loading state
+        setIsProcessingLogin(false);
+      });
   };
   
   const isLoading = isAuthLoading || isProcessingLogin;

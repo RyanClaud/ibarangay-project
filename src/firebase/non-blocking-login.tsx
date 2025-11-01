@@ -22,16 +22,14 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
   // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
 }
 
-/** Initiate email/password sign-in (non-blocking). */
-export function initiateEmailSignIn(authInstance: Auth, email: string, password: string): void {
-  // CRITICAL: Call signInWithEmailAndPassword directly. Do NOT use 'await signInWithEmailAndPassword(...)'.
-  signInWithEmailAndPassword(authInstance, email, password)
-    .catch((error) => {
-      // Although non-blocking for success, we should handle login errors.
-      console.error("Sign in error", error);
-      // You could emit a global error event here for a toast notification.
-    });
-  // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
+/** Initiate email/password sign-in (non-blocking). Returns a promise that resolves on success and rejects on failure. */
+export function initiateEmailSignIn(authInstance: Auth, email: string, password: string): Promise<void> {
+  // This function now returns the promise from signInWithEmailAndPassword.
+  // The caller can then use .then(), .catch(), and .finally().
+  return signInWithEmailAndPassword(authInstance, email, password).then(() => {
+    // Return void on success to match the promise type
+    return;
+  });
 }
 
 /** Initiate sign-out (non-blocking). */

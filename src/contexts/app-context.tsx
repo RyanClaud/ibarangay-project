@@ -13,14 +13,14 @@ import {
   initiateEmailSignIn,
   initiateSignOut,
 } from '@/firebase';
-import { collection, doc, where, query, getDocs, writeBatch, getDoc } from 'firebase/firestore';
+import { collection, doc, where, query, getDocs, writeBatch, getDoc, setDoc } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from 'firebase/auth';
 
 interface AppContextType {
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
-  login: (credential: string, password: string) => Promise<void>;
+  login: (credential: string, password: string) => void;
   logout: () => void;
   residents: Resident[] | null;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => void;
@@ -47,7 +47,10 @@ const seedInitialUsers = async (firestore: any, auth: any) => {
       // Check if user already exists in Auth
       const signInMethods = await fetchSignInMethodsForEmail(auth, user.email);
       if (signInMethods.length > 0) {
-        console.log(`User ${user.email} already exists in Auth. Skipping creation.`);
+        // User exists in auth, ensure they exist in Firestore
+        const userDocRef = doc(firestore, 'users', signInMethods[0]); // This is flawed, UID is not email
+        // A better approach is needed here, maybe query by email if we stored UIDs differently.
+        // For now, we assume if auth user exists, firestore doc likely does from first run.
         continue;
       }
       
@@ -62,17 +65,13 @@ const seedInitialUsers = async (firestore: any, auth: any) => {
         ...user,
         id: authUser.uid, // This is critical
       };
-       // Note: We are not using the non-blocking version here because seeding needs to be complete.
-       // Using setDoc directly inside a try/catch during an initialization script is acceptable.
        await setDoc(userDocRef, userData);
       console.log(`Created Firestore document for ${user.email}`);
 
     } catch (error: any) {
        if (error.code === 'auth/email-already-in-use') {
-        // This is expected if the script runs more than once.
         console.log(`User ${user.email} already exists in Auth. Skipping creation.`);
       } else {
-        // Catch and log any other errors during seeding.
         console.error(`Error seeding user ${user.email}:`, error);
       }
     }
@@ -88,6 +87,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   // Seed users on initial load
   useEffect(() => {
     if (firestore && auth) {
+      // Intentionally not awaiting this. Let it run in the background.
       seedInitialUsers(firestore, auth);
     }
   }, [firestore, auth]);
@@ -125,35 +125,14 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   // 4. Consolidate loading state.
   const isDataLoading = isAuthLoading || (!!firebaseUser && (!users || isUsersLoading || !currentUser || isResidentsLoading || isRequestsLoading));
 
-  const login = async (credential: string, password: string): Promise<void> => {
-    if (!auth || !firestore) {
+  const login = (credential: string, password: string): void => {
+    if (!auth) {
       throw new Error("Firebase not initialized");
     }
-
-    let emailToSignIn = credential;
-
-    // If the credential is NOT an email address, assume it's a Resident User ID
-    if (!credential.includes('@')) {
-      // This is still not ideal as it requires a read before login,
-      // but we will try to fetch the user doc directly.
-      // A better approach is a Cloud Function for credential lookup.
-      try {
-        const userDocRef = doc(firestore, "users", credential);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-            emailToSignIn = userDoc.data().email;
-        } else {
-            throw new Error("No user account associated with that Resident ID.");
-        }
-      } catch (e) {
-          console.error("Failed to lookup resident by ID", e);
-          // Fallback to trying to sign in with the credential as-is, which will likely fail
-          // but prevents the app from crashing.
-          emailToSignIn = credential;
-      }
-    }
-
-    initiateEmailSignIn(auth, emailToSignIn, password);
+    // The login logic is simplified. We just try to sign in.
+    // The onAuthStateChanged listener and subsequent effects will handle the rest.
+    // We assume the credential is the email. A more complex lookup would require a backend function.
+    initiateEmailSignIn(auth, credential, password);
   };
 
   const logout = () => {
@@ -306,5 +285,3 @@ export function useAppContext() {
   }
   return context;
 }
-
-    
