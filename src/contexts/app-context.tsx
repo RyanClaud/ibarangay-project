@@ -15,12 +15,11 @@ import {
 } from '@/firebase';
 import { collection, doc, where, query, getDocs, writeBatch, getDoc, setDoc } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
-import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from 'firebase/auth';
+import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail, deleteUser as deleteAuthUser } from 'firebase/auth';
 
 interface AppContextType {
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
-  login: (credential: string, password: string) => void;
   logout: () => void;
   residents: Resident[] | null;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => void;
@@ -41,40 +40,49 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // Helper function to seed initial users into Firebase Auth and Firestore
 const seedInitialUsers = async (firestore: any, auth: any) => {
   console.log('Checking and seeding initial users if necessary...');
+  let hasSeeded = false;
+  // Use a flag in sessionStorage to ensure this runs only once per session.
+  if (sessionStorage.getItem('user_seeded')) {
+    return;
+  }
 
-  for (const user of initialUsers) {
+  for (const initialUser of initialUsers) {
     try {
       // Check if user already exists in Auth
-      const signInMethods = await fetchSignInMethodsForEmail(auth, user.email);
-      if (signInMethods.length > 0) {
-        // User exists in auth, ensure they exist in Firestore
-        const userDocRef = doc(firestore, 'users', signInMethods[0]); // This is flawed, UID is not email
-        // A better approach is needed here, maybe query by email if we stored UIDs differently.
-        // For now, we assume if auth user exists, firestore doc likely does from first run.
-        continue;
-      }
+      const signInMethods = await fetchSignInMethodsForEmail(auth, initialUser.email);
       
-      // User does not exist in Auth, so create them
-      console.log(`Creating auth user for ${user.email}...`);
-      const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
-      const authUser = userCredential.user;
+      if (signInMethods.length === 0) {
+        // User does not exist, create them in Auth
+        console.log(`Creating auth user for ${initialUser.email}...`);
+        const userCredential = await createUserWithEmailAndPassword(auth, initialUser.email, 'password');
+        const authUser = userCredential.user;
 
-      // Now create their document in Firestore using the UID from Auth
-      const userDocRef = doc(firestore, 'users', authUser.uid);
-      const userData: User = {
-        ...user,
-        id: authUser.uid, // This is critical
-      };
-       await setDoc(userDocRef, userData);
-      console.log(`Created Firestore document for ${user.email}`);
-
-    } catch (error: any) {
-       if (error.code === 'auth/email-already-in-use') {
-        console.log(`User ${user.email} already exists in Auth. Skipping creation.`);
+        // Now create their document in Firestore using the UID from Auth
+        const userDocRef = doc(firestore, 'users', authUser.uid);
+        const userData: User = {
+          ...initialUser,
+          id: authUser.uid, // This is critical
+        };
+        await setDoc(userDocRef, userData);
+        console.log(`Created Firestore document for ${initialUser.email} with UID ${authUser.uid}`);
+        hasSeeded = true;
       } else {
-        console.error(`Error seeding user ${user.email}:`, error);
+        // User exists in auth, ensure they have a firestore doc.
+        // This is a recovery step in case of partial failure.
+        // NOTE: This part is complex because we don't know the UID from the email alone.
+        // For this app, we'll assume that if an auth user exists, the Firestore doc
+        // was likely created on the first successful run.
+      }
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        console.log(`User ${initialUser.email} already exists in Auth. Skipping creation.`);
+      } else {
+        console.error(`Error seeding user ${initialUser.email}:`, error);
       }
     }
+  }
+  if (hasSeeded) {
+    sessionStorage.setItem('user_seeded', 'true');
   }
    console.log('Finished user seeding check.');
 };
@@ -94,9 +102,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   // 1. Fetch users only after Firebase Auth has confirmed a user is logged in.
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore || !firebaseUser) return null; // Don't query if no user
+    if (!firestore) return null; // Query immediately, rules will enforce access
     return collection(firestore, 'users');
-  }, [firestore, firebaseUser]);
+  }, [firestore]);
   const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
 
   // 2. Determine the app's current user based on the Auth user and the fetched users list.
@@ -125,16 +133,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   // 4. Consolidate loading state.
   const isDataLoading = isAuthLoading || (!!firebaseUser && (!users || isUsersLoading || !currentUser || isResidentsLoading || isRequestsLoading));
 
-  const login = (credential: string, password: string): void => {
-    if (!auth) {
-      throw new Error("Firebase not initialized");
-    }
-    // The login logic is simplified. We just try to sign in.
-    // The onAuthStateChanged listener and subsequent effects will handle the rest.
-    // We assume the credential is the email. A more complex lookup would require a backend function.
-    initiateEmailSignIn(auth, credential, password);
-  };
-
   const logout = () => {
     if (!auth) return;
     initiateSignOut(auth);
@@ -159,14 +157,13 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
     // Also create a user account for the resident
      const newUser: User = {
-       id: newResident.userId, // Using the resident's User ID for the auth user's UID
+       id: newResident.userId, // This is still problematic as it assumes we can set the UID.
        name: `${newResident.firstName} ${newResident.lastName}`,
        email: `${newResident.lastName.toLowerCase()}${newResUserIdNumber}@ibarangay.com`, // dummy email
        avatarUrl: newResident.avatarUrl,
        role: 'Resident',
        residentId: newResident.id,
      };
-     // This is problematic; creating an auth user should be separate. For now, just create the user doc.
      const userRef = doc(firestore, 'users', newUser.id);
      setDocumentNonBlocking(userRef, newUser, { merge: true });
   };
@@ -207,7 +204,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const addUser = (user: Omit<User, 'id' | 'avatarUrl'>) => {
     if (!firestore || !auth) return;
     
-    // Create user in Auth
     createUserWithEmailAndPassword(auth, user.email, 'password')
       .then(userCredential => {
         const authUser = userCredential.user;
@@ -217,7 +213,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
           avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
         };
         const userRef = doc(firestore, 'users', authUser.uid);
-        // Use setDoc and chain a .catch for error handling
         setDocumentNonBlocking(userRef, newUser, { merge: true });
       })
       .catch(error => {
@@ -230,16 +225,17 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const updateUser = (updatedUser: User) => {
     if (!firestore) return;
     const userRef = doc(firestore, 'users', updatedUser.id);
-    // Don't update email directly in firestore without updating in Auth too.
-    // For this app, we'll just update non-sensitive fields.
     const { email, ...rest } = updatedUser;
     updateDocumentNonBlocking(userRef, rest);
   };
 
   const deleteUser = (userId: string) => {
-    if (!firestore) return;
-    // Note: This only deletes the Firestore record, not the Auth user.
-    // Proper implementation requires a Firebase Function.
+    if (!firestore || !auth) return;
+    // This is not a complete implementation. Deleting a Firebase Auth user
+    // is a privileged operation that should be handled by a backend function.
+    // The client-side can only delete its own account.
+    // For this app, we will just delete the Firestore record.
+    console.warn("Warning: Deleting user from Firestore only. Auth user remains.");
     const userRef = doc(firestore, 'users', userId);
     deleteDocumentNonBlocking(userRef);
   };
@@ -248,7 +244,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       currentUser,
       setCurrentUser,
-      login,
       logout,
       residents,
       addResident,
