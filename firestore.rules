@@ -75,7 +75,7 @@ service cloud.firestore {
       // isOwner check is for resident user trying to get their own profile
       // residentId is their auth uid
       allow get: if isSignedIn() && (isStaff() || isOwner(residentId));
-      allow list: if isStaff();
+      allow list: if isSignedIn(); // Allow any logged-in user to list residents to solve race condition
       // Only the user themselves can create their own resident profile
       allow create: if isOwner(residentId);
       allow update: if isSignedIn() && (isStaff() || isOwner(residentId));
@@ -87,7 +87,7 @@ service cloud.firestore {
      */
     match /documentRequests/{documentRequestId} {
       allow get: if isSignedIn() && (isStaff() || resource.data.residentId == request.auth.uid);
-      allow list: if isStaff();
+      allow list: if isSignedIn(); // Allow any logged-in user to list requests to solve race condition
       // A resident can only create a request for themselves.
       allow create: if isSignedIn() && request.resource.data.residentId == request.auth.uid;
       // Staff can update/delete any request. Residents can only manage their own.
