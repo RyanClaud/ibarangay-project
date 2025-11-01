@@ -50,7 +50,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const usersQuery = useMemoFirebase(() => (firestore && currentUser) ? collection(firestore, 'users') : null, [firestore, currentUser]);
   const { data: users = [], isLoading: isUsersLoading } = useCollection<User>(usersQuery);
 
-  const isDataLoading = isAuthLoading || isResidentsLoading || isRequestsLoading || isUsersLoading;
+  const isDataLoading = isAuthLoading || (!!currentUser && (isResidentsLoading || isRequestsLoading || isUsersLoading));
 
   const login = (credential: string) => {
     // We use initialUsers here because the full 'users' collection might not be available yet.
