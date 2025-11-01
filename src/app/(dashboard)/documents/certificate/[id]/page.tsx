@@ -3,10 +3,12 @@
 import { useParams, notFound, useRouter } from "next/navigation";
 import { useAppContext } from "@/contexts/app-context";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, Loader2 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Separator } from "@/components/ui/separator";
 import type { DocumentRequest, Resident } from "@/lib/types";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 export default function CertificatePage() {
   const { id } = useParams();
@@ -29,8 +31,30 @@ export default function CertificatePage() {
     return notFound();
   }
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownload = () => {
+    const certificateElement = document.getElementById('certificate');
+    if (certificateElement) {
+        // Temporarily remove no-print elements for canvas capture
+        const noPrintElements = certificateElement.querySelectorAll('.no-print-capture');
+        noPrintElements.forEach(el => el.classList.add('hidden'));
+
+        html2canvas(certificateElement, {
+            scale: 2, // Higher scale for better quality
+            useCORS: true, 
+        }).then((canvas) => {
+            // Restore hidden elements after capture
+            noPrintElements.forEach(el => el.classList.remove('hidden'));
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'px',
+                format: [canvas.width, canvas.height]
+            });
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`${request.documentType.replace(/ /g, '_')}-${resident.lastName}.pdf`);
+        });
+    }
   };
 
   const getAge = (birthdate: string) => {
@@ -52,7 +76,7 @@ export default function CertificatePage() {
                 Back
             </Button>
             <h1 className="text-2xl font-bold font-headline">Certificate Preview</h1>
-            <p className="text-muted-foreground">This is a preview of the certificate. Click the print button to get a physical copy.</p>
+            <p className="text-muted-foreground">This is a preview of the certificate. Click the download button to get a PDF copy.</p>
         </div>
         <div className="bg-white text-black max-w-4xl mx-auto p-10 border-4 border-primary shadow-2xl my-8 print:shadow-none print:border-none print:my-0 print:mx-0 print:max-w-full print:p-0 relative" id="certificate">
             <div className="absolute inset-0 flex items-center justify-center z-0 opacity-10">
@@ -129,12 +153,12 @@ export default function CertificatePage() {
                     </div>
                 </footer>
             </div>
-             <div className="absolute bottom-8 right-8 no-print z-20">
-                <Button onClick={handlePrint} size="lg">
-                    <Printer className="mr-2" /> Print Certificate
+             <div className="absolute bottom-8 right-8 no-print no-print-capture z-20">
+                <Button onClick={handleDownload} size="lg">
+                    <Download className="mr-2" /> Download as PDF
                 </Button>
             </div>
-             <p className="absolute bottom-8 left-8 text-xs text-gray-400 no-print z-20">
+             <p className="absolute bottom-8 left-8 text-xs text-gray-400 no-print no-print-capture z-20">
                 Tracking No: {request.trackingNumber} | Not a valid document without the official barangay seal.
             </p>
         </div>
