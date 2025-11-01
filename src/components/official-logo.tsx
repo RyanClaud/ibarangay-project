@@ -14,28 +14,28 @@ export function OfficialLogo({ className }: { className?: string }) {
       >
         <circle cx="500" cy="500" r="490" fill="#00652e"/>
         <circle cx="500" cy="500" r="450" fill="white" stroke="#00652e" strokeWidth="2"/>
-        <circle cx="500" cy="500" r="390" fill="none" stroke="#fec93e" strokeWidth="120"/>
-
+        
         <defs>
-            <path id="circlePath" d="M 250,500 A 250,250 0 1,1 750,500 A 250,250 0 1,1 250,500" fill="transparent" />
+            <path id="circlePathUpper" d="M 250, 500 A 250,250 0 1 1 750,500" fill="transparent" />
+            <path id="circlePathLower" d="M 750, 500 A 250,250 0 1 1 250,500" fill="transparent" />
         </defs>
         
         <text fill="#00652e" fontSize="70" fontWeight="bold" letterSpacing="4">
-            <textPath href="#circlePath" startOffset="50%" textAnchor="middle">
+            <textPath href="#circlePathUpper" startOffset="50%" textAnchor="middle">
                 BAYAN NG BONGABONG
             </textPath>
         </text>
 
-        <text fill="#00652e" fontSize="50" fontWeight="bold" letterSpacing="2">
-            <textPath href="#circlePath" startOffset="0%" textAnchor="middle" transform="rotate(180 500 500) translate(-1000, -1000) scale(-1, -1)">
+        <text fill="#00652e" fontSize="55" fontWeight="bold" letterSpacing="2">
+            <textPath href="#circlePathLower" startOffset="50%" textAnchor="middle">
                 LALAWIGAN NG SILANGANG MINDORO
             </textPath>
         </text>
         
-        <circle cx="500" cy="500" r="280" fill="white" stroke="#00652e" strokeWidth="2"/>
+        <circle cx="500" cy="500" r="380" fill="#fec93e" />
+        <circle cx="500" cy="500" r="370" fill="white" stroke="#00652e" strokeWidth="2"/>
         
         <path d="M500 240 L700 450 L300 450 Z" fill="#00a358" stroke="black" strokeWidth="2"/>
-        <text x="500" y="380" textAnchor="middle" fill="white" fontSize="40" fontWeight="bold">Bundok</text>
         
         <path d="M300 450 H 700 V 750 H 300 Z" fill="#75d1f5" stroke="black" strokeWidth="2"/>
         <path d="M300 750 Q 500 650 700 750 H 300 Z" fill="#fec93e"/>
@@ -50,7 +50,6 @@ export function OfficialLogo({ className }: { className?: string }) {
             <path d="M850 150 L880 180 L850 210 L820 180 Z"/>
             <path d="M150 850 L180 820 L150 790 L120 820 Z"/>
             <path d="M850 850 L880 820 L850 790 L820 820 Z"/>
-        _
         </g>
 
         <text x="500" y="940" textAnchor="middle" fill="white" fontSize="50" fontWeight="bold">OPISYAL NA SAGISAG</text>
