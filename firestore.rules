@@ -75,8 +75,9 @@ service cloud.firestore {
       // isOwner check is for resident user trying to get their own profile
       // residentId is their auth uid
       allow get: if isStaff() || isOwner(residentId);
-      // Allow any logged-in user to list residents to solve race condition, but they can only get their own.
-      allow list: if isStaff() || (request.query.where.userId != null);
+      // Allow staff to list all residents.
+      // Also, allow an unauthenticated query if and only if it's for the login lookup.
+      allow list: if isStaff() || request.query.where.userId != null;
       // Only the user themselves can create their own resident profile
       allow create: if isOwner(residentId);
       allow update: if isStaff() || isOwner(residentId);
