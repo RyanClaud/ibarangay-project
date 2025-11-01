@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from "react";
@@ -16,7 +17,7 @@ import { Loader2 } from "lucide-react";
 import Image from "next/image";
 
 export default function SettingsPage() {
-  const { firestore } = useFirebase();
+  const { firestore, storage } = useFirebase();
   const [barangayName, setBarangayName] = useState("Barangay Mina De Oro");
   const [address, setAddress] = useState("Bongabong, Oriental Mindoro, Philippines");
   const [sealLogoUrl, setSealLogoUrl] = useState<string | null>(null);
@@ -51,13 +52,12 @@ export default function SettingsPage() {
   };
 
   const handleSaveChanges = async () => {
-    if (!firestore) return;
+    if (!firestore || !storage) return;
     setIsSaving(true);
     let uploadedLogoUrl = sealLogoUrl;
 
     if (newSealFile) {
       try {
-        const storage = getStorage();
         const storageRef = ref(storage, `barangay-seals/${newSealFile.name}`);
         const uploadResult = await uploadBytes(storageRef, newSealFile);
         uploadedLogoUrl = await getDownloadURL(uploadResult.ref);
