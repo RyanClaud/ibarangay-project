@@ -4,11 +4,11 @@ import { useParams, notFound, useRouter } from "next/navigation";
 import { useAppContext } from "@/contexts/app-context";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
-import { Logo } from "@/components/logo";
 import { Separator } from "@/components/ui/separator";
 import type { DocumentRequest, Resident } from "@/lib/types";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { OfficialLogo } from "@/components/official-logo";
 
 export default function CertificatePage() {
   const { id } = useParams();
@@ -80,12 +80,12 @@ export default function CertificatePage() {
         </div>
         <div className="bg-white text-black max-w-4xl mx-auto p-10 border-4 border-primary shadow-2xl my-8 print:shadow-none print:border-none print:my-0 print:mx-0 print:max-w-full print:p-0 relative" id="certificate">
             <div className="absolute inset-0 flex items-center justify-center z-0 opacity-10">
-                <Logo className="size-[400px] text-primary" />
+                <OfficialLogo className="size-[400px]" />
             </div>
             <div className="relative z-10">
                 <header className="text-center space-y-4">
                     <div className="flex justify-center items-center gap-4">
-                        <Logo className="size-20" />
+                        <OfficialLogo className="size-20" />
                         <div>
                             <p className="text-lg">Republic of the Philippines</p>
                             <p className="text-lg">Bongabong, Oriental Mindoro</p>

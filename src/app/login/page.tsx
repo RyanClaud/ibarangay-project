@@ -7,9 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Logo } from '@/components/logo';
 import { useAppContext } from '@/contexts/app-context';
 import { toast } from '@/hooks/use-toast';
+import { OfficialLogo } from '@/components/official-logo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm shadow-2xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4">
-            <Logo />
+            <OfficialLogo className='size-24' />
           </div>
           <CardTitle className="text-3xl font-headline">iBarangay</CardTitle>
           <CardDescription>Digital Barangay Management</CardDescription>
