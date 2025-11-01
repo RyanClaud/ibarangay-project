@@ -59,25 +59,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
     let emailToLogin = credential;
     
-    // Check if the credential is a resident ID (doesn't contain '@')
-    if (!credential.includes('@')) {
-        const residentsRef = collection(firestore, 'residents');
-        const q = query(residentsRef, where("userId", "==", credential));
-        
-        const querySnapshot = await getDocs(q);
-        if (querySnapshot.empty) {
-            throw new Error("Invalid resident user ID.");
-        }
-        const residentDoc = querySnapshot.docs[0];
-        const residentData = residentDoc.data();
-        
-        const userDocRef = doc(firestore, 'users', residentDoc.id);
-        const userDoc = await getDoc(userDocRef);
-
-        if (!userDoc.exists()) {
-             throw new Error("Could not find user profile associated with resident.");
-        }
-        emailToLogin = userDoc.data().email;
+    // Check if the credential is a resident ID (doesn't contain '@' and starts with 'R-')
+    if (!credential.includes('@') && credential.toUpperCase().startsWith('R-')) {
+        // Construct the predictable email address for the resident
+        emailToLogin = `${credential.toUpperCase()}@ibarangay.local`;
     }
     
     await signInWithEmailAndPassword(auth, emailToLogin, password);
@@ -92,11 +77,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const addResident = async (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => {
     if (!firestore || !auth || !residents) return;
     
-    // Note: In a production app, resident emails should be real and unique.
-    // This temporary email is for demonstration purposes.
-    const residentEmail = `${newResidentData.lastName.toLowerCase().replace(/[^a-z0-9]/g, '')}${Date.now()}@ibarangay.local`;
     const newResUserIdNumber = (residents?.length ?? 1000) + 1;
     const residentUserId = `R-${newResUserIdNumber}`;
+    // Use a predictable email based on the User ID for login purposes
+    const residentEmail = `${residentUserId}@ibarangay.local`;
 
     try {
       // Step 1: Create the user in Firebase Authentication
