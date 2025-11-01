@@ -81,7 +81,7 @@ service cloud.firestore {
      */
     match /documentRequests/{documentRequestId} {
       allow get: if isSignedIn() && (isStaff() || resource.data.residentId == request.auth.uid);
-      allow list: if isSignedIn() && (isStaff() || (request.query.keys().hasAny(['where']) && request.query.where.residentId == request.auth.uid));
+      allow list: if isStaff();
       // A resident can only create a request for themselves.
       allow create: if isSignedIn() && request.resource.data.residentId == request.auth.uid;
       // Staff can update/delete any request. Residents can only manage their own.
