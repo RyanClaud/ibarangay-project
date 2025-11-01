@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { AddResidentDialog } from "./add-resident-dialog";
 import { EditResidentDialog } from "./edit-resident-dialog";
 import { DeleteResidentDialog } from "./delete-resident-dialog";
+import { useRouter } from "next/navigation";
 
 interface ResidentClientPageProps {
   data: Resident[];
@@ -35,6 +36,7 @@ export function ResidentClientPage({ data: initialData }: ResidentClientPageProp
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [residentToEdit, setResidentToEdit] = React.useState<Resident | null>(null);
   const [residentToDelete, setResidentToDelete] = React.useState<Resident | null>(null);
+  const router = useRouter();
 
   const filteredData = data.filter(
     (resident) =>
@@ -69,6 +71,10 @@ export function ResidentClientPage({ data: initialData }: ResidentClientPageProp
   const handleDeleteResident = (residentId: string) => {
     setData(prevData => prevData.filter(r => r.id !== residentId));
     setResidentToDelete(null);
+  };
+  
+  const handleViewProfile = (residentId: string) => {
+    router.push(`/residents/${residentId}`);
   };
 
   return (
@@ -136,7 +142,7 @@ export function ResidentClientPage({ data: initialData }: ResidentClientPageProp
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => setResidentToEdit(resident)}>Edit</DropdownMenuItem>
-                        <DropdownMenuItem>View Profile</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleViewProfile(resident.id)}>View Profile</DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => setResidentToDelete(resident)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
