@@ -1,7 +1,7 @@
 /**
  * @file Firebase Security Rules for iBarangay System
  * @description This ruleset enforces a user-ownership model for residents and their document requests,
- *               while also providing role-based access for barangay officials and administrators using a role field in the user's document.
+ *               while also providing role-based access for barangay officials and administrators.
  *
  * Data Structure:
  * - /users/{userId}: Stores user accounts with a 'role' field.
@@ -12,13 +12,13 @@
  * - /barangayConfig/{configId}: Stores configuration settings for the barangay.
  *
  * Key Security Decisions:
- * - The user's role is stored in their document at /users/{userId}.
+ * - Role-based access is determined by custom claims on the auth token (request.auth.token.role).
  * - Authenticated users can read their own user document.
  * - Residents can only read/write their own resident profile.
  * - Staff (non-residents) can read all resident profiles.
  * - Residents can only create document requests for themselves and read their own requests.
- * - Staff (non-residents) can read all document requests.
- * - Admins (role == "Admin") have the highest level of privileges.
+ * - Staff (non-residents) can read and manage all document requests.
+ * - Admins have the highest level of privileges.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -38,30 +38,19 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-    
-    function getUserRole(uid) {
-      let userDoc = get(/databases/$(database)/documents/users/$(uid));
-      if (userDoc.data == null) {
-        return "";
-      }
-      return userDoc.data.role;
-    }
 
     /**
-     * @description Checks if the authenticated user has the "Admin" role.
-     *               IDEALLY, this would check a custom claim: `request.auth.token.role == "Admin"`
+     * @description Checks if the authenticated user has the "Admin" role via custom claims.
      */
     function isAdmin() {
-       return isSignedIn() && getUserRole(request.auth.uid) == "Admin";
+      return isSignedIn() && request.auth.token.role == "Admin";
     }
 
     /**
-     * @description Checks if the authenticated user is a staff member.
-     *               IDEALLY, this would check a custom claim: `request.auth.token.role != "Resident"`
+     * @description Checks if the authenticated user is a staff member via custom claims.
      */
     function isStaff() {
-      let role = getUserRole(request.auth.uid);
-      return isSignedIn() && role != "Resident" && role != "";
+      return isSignedIn() && request.auth.token.role != "Resident";
     }
     
     /**
@@ -69,7 +58,7 @@ service cloud.firestore {
      */
     match /users/{userId} {
       allow get: if isSignedIn();
-      allow list: if isStaff();
+      allow list: if isStaff() || isAdmin();
       allow create: if true; 
       allow update: if isAdmin() || isOwner(userId);
       allow delete: if isAdmin() || isOwner(userId);
@@ -79,40 +68,34 @@ service cloud.firestore {
      * @description Rules for the /residents/{residentId} collection.
      */
     match /residents/{residentId} {
-      // A resident can get their own profile. Staff can get any profile.
-      allow get: if isStaff() || isOwner(residentId);
-      // Staff can list all residents. Unauthenticated users can query for a single resident (for login).
-      allow list: if isStaff() || (request.auth == null && request.query.limit == 1);
+      allow get: if isStaff() || isAdmin() || isOwner(residentId);
+      // Staff/Admins can list all. Unauthenticated users can query for ONE resident (for login lookup).
+      allow list: if isStaff() || isAdmin() || (request.auth == null && request.query.limit == 1);
       allow create: if true;
-      allow update: if isStaff() || isOwner(residentId);
-      allow delete: if isStaff();
+      allow update: if isStaff() || isAdmin() || isOwner(residentId);
+      allow delete: if isStaff() || isAdmin();
     }
 
     /**
      * @description Rules for the /documentRequests/{documentRequestId} collection.
      */
     match /documentRequests/{documentRequestId} {
-      // Staff can list all requests. Residents can't (they query with a where clause).
-      allow list: if isStaff();
-      // Staff can get any request. A resident can get their own.
-      allow get: if isStaff() || (resource.data.residentId == request.auth.uid);
-      // A resident can only create document requests for themselves.
+      // Staff can list all requests. Residents query via a 'where' clause, which is checked at the 'get' level.
+      allow list: if isStaff() || isAdmin();
+      allow get: if isStaff() || isAdmin() || (resource.data.residentId == request.auth.uid);
       allow create: if request.resource.data.residentId == request.auth.uid;
-      // Staff can manage any request. A resident can update/delete their own.
-      allow write: if isStaff() || (resource.data.residentId == request.auth.uid);
+      allow write: if isStaff() || isAdmin() || (resource.data.residentId == request.auth.uid);
     }
 
     /**
      * @description Rules for the /payments/{paymentId} collection.
-     * Payments are managed by staff.
      */
     match /payments/{paymentId} {
-      allow read, write: if isStaff();
+      allow read, write: if isStaff() || isAdmin();
     }
 
     /**
      * @description Rules for the /officials/{officialId} collection.
-     * Only Admins can manage officials.
      */
     match /officials/{officialId} {
       allow read, write: if isAdmin();
@@ -120,7 +103,6 @@ service cloud.firestore {
 
     /**
      * @description Rules for the /barangayConfig/{configId} collection.
-     * Publicly readable, but only writable by Admins.
      */
     match /barangayConfig/{configId} {
       allow read: if true;
