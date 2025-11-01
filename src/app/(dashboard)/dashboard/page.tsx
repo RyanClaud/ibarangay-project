@@ -6,20 +6,12 @@ import { StatCard } from "@/components/dashboard/stat-card";
 import { RequestsChart } from "@/components/dashboard/requests-chart";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { CircleDollarSign, FileText, Users, CheckCircle, Loader2 } from "lucide-react";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useAppContext } from "@/contexts/app-context";
 
 export default function DashboardPage() {
-  const { currentUser, residents, documentRequests, login } = useAppContext();
+  const { currentUser, residents, documentRequests } = useAppContext();
   
-  // On initial load, if there's no user, simulate a default login.
-  // This will only run once if currentUser is not set.
-  useEffect(() => {
-    if (!currentUser) {
-        login("admin@ibarangay.com");
-    }
-  }, [currentUser, login]);
-
   const user = currentUser;
 
   const residentInfo = useMemo(() => {

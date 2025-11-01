@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from 'react';
 import type { User, Resident, DocumentRequest, DocumentRequestStatus } from '@/lib/types';
-import { documentRequests as initialDocumentRequests, residents as initialResidents, findUserByCredential } from '@/lib/data';
+import { documentRequests as initialDocumentRequests, residents as initialResidents, findUserByCredential, users } from '@/lib/data';
 
 interface AppContextType {
   currentUser: User | null;
@@ -19,8 +19,11 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Find the admin user from the mock data to use as the default.
+const defaultUser = users.find(u => u.role === 'Admin');
+
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(defaultUser || null);
   const [residents, setResidents] = useState<Resident[]>(initialResidents);
   const [documentRequests, setDocumentRequests] = useState<DocumentRequest[]>(initialDocumentRequests);
 
