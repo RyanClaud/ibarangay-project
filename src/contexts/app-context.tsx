@@ -55,9 +55,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   // If the user is a resident, we fetch their single user document separately.
   const userDocRef = useMemoFirebase(() => {
-      if (!firestore || !currentUser?.id) return null;
-      return doc(firestore, 'users', currentUser.id);
-  }, [firestore, currentUser?.id]);
+    if (!firestore || !currentUser?.id || currentUser.role !== 'Resident') return null;
+    return doc(firestore, 'users', currentUser.id);
+  }, [firestore, currentUser?.id, currentUser?.role]);
 
   const { data: singleUserDoc, isLoading: isSingleUserLoading } = useDoc<User>(userDocRef);
 
