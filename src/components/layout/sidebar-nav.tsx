@@ -21,7 +21,6 @@ import {
   Settings,
   LogOut,
   FileSignature,
-  FilePlus,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { getLoggedInUser } from '@/lib/data';
@@ -61,7 +60,6 @@ const navItems = {
   ],
   Resident: [
     { href: '/dashboard', icon: LayoutDashboard, label: 'My Dashboard' },
-    { href: '/requests', icon: FilePlus, label: 'Request Document' },
   ],
 };
 
