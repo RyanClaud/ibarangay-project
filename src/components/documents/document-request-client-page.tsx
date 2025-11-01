@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, CheckCircle, XCircle, FileSearch, Check } from "lucide-react";
+import { MoreHorizontal, CheckCircle, XCircle, FileSearch, Check, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,10 +36,10 @@ const statusColors: Record<DocumentRequestStatus, string> = {
   Rejected: "bg-red-100 text-red-800 border-red-200",
 };
 
-const TABS: DocumentRequestStatus[] = ["Pending", "Approved", "Paid", "Released", "Rejected"];
+const TABS: DocumentRequestStatus[] = ["Pending", "Approved", "Released", "Rejected"];
 
 export function DocumentRequestClientPage() {
-  const { documentRequests, updateDocumentRequestStatus, currentUser } = useAppContext();
+  const { documentRequests, updateDocumentRequestStatus, deleteDocumentRequest, currentUser } = useAppContext();
   const [filter, setFilter] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<DocumentRequestStatus | 'All'>('Pending');
   const router = useRouter();
@@ -51,6 +51,15 @@ export function DocumentRequestClientPage() {
       description: `Request status has been changed to ${status}.`,
     });
   };
+
+  const handleDelete = (id: string) => {
+    deleteDocumentRequest(id);
+    toast({
+      title: "Request Deleted",
+      description: `The request has been permanently removed.`,
+      variant: "destructive",
+    });
+  }
 
   const handleViewCertificate = (requestId: string) => {
     router.push(`/documents/certificate/${requestId}`);
@@ -66,6 +75,7 @@ export function DocumentRequestClientPage() {
   const canApprove = currentUser?.role === 'Admin' || currentUser?.role === 'Barangay Captain' || currentUser?.role === 'Secretary';
   const canMarkPaid = currentUser?.role === 'Admin' || currentUser?.role === 'Treasurer';
   const canRelease = currentUser?.role === 'Admin' || currentUser?.role === 'Secretary';
+  const canDelete = currentUser?.role === 'Admin' || currentUser?.role === 'Barangay Captain';
 
   return (
     <div className="space-y-4">
@@ -79,7 +89,7 @@ export function DocumentRequestClientPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5">
             <TabsTrigger value="All">All</TabsTrigger>
           {TABS.map(tab => (
             <TabsTrigger key={tab} value={tab}>{tab}</TabsTrigger>
@@ -158,6 +168,15 @@ export function DocumentRequestClientPage() {
                           <DropdownMenuItem className="text-destructive" onClick={() => handleStatusChange(request.id, 'Rejected')}>
                             <XCircle /> Reject
                           </DropdownMenuItem>
+                        )}
+
+                        {canDelete && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(request.id)}>
+                              <Trash2 /> Delete Permanently
+                            </DropdownMenuItem>
+                          </>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>

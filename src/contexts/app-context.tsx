@@ -12,10 +12,11 @@ import {
   initiateSignOut,
   useDoc,
 } from '@/firebase';
-import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs, limit, updateDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs, limit, updateDoc, deleteDoc } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface AppContextType {
   currentUser: User | null;
@@ -23,14 +24,15 @@ interface AppContextType {
   logout: () => void;
   residents: Resident[] | null;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => Promise<void>;
-  updateResident: (residentId: string, dataToUpdate: Partial<Resident>) => Promise<void>;
+  updateResident: (residentId: string, dataToUpdate: Partial<Resident>, avatarFile?: File | null) => Promise<void>;
   deleteResident: (residentId: string) => void;
   documentRequests: DocumentRequest[] | null;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
+  deleteDocumentRequest: (id: string) => void;
   users: User[] | null;
   addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => Promise<void>;
-  updateUser: (dataToUpdate: Partial<User> & { id: string }) => Promise<void>;
+  updateUser: (dataToUpdate: Partial<User> & { id: string }, avatarFile?: File | null) => Promise<void>;
   deleteUser: (userId: string) => void;
   isDataLoading: boolean;
   login: (credential: string, password: string) => Promise<void>;
@@ -188,23 +190,27 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const updateResident = async (residentId: string, dataToUpdate: Partial<Resident>) => {
     if (!firestore) return;
-    
+  
     const residentRef = doc(firestore, 'residents', residentId);
     await updateDoc(residentRef, dataToUpdate);
   
     // Also update the associated user document if needed
     const dataForUser: Partial<User> = {};
     if (dataToUpdate.firstName || dataToUpdate.lastName) {
-      const residentDoc = await getDoc(residentRef);
-      if (residentDoc.exists()) {
-        const residentData = residentDoc.data() as Resident;
-        dataForUser.name = `${residentData.firstName} ${residentData.lastName}`;
-      }
+       // To get the full name, we need the full document
+       const residentSnap = await getDoc(residentRef);
+       if (residentSnap.exists()) {
+           const residentData = residentSnap.data() as Resident;
+           // Construct name from potentially partial data
+           const newFirstName = dataToUpdate.firstName || residentData.firstName;
+           const newLastName = dataToUpdate.lastName || residentData.lastName;
+           dataForUser.name = `${newFirstName} ${newLastName}`;
+       }
     }
     if (dataToUpdate.avatarUrl) {
       dataForUser.avatarUrl = dataToUpdate.avatarUrl;
     }
-
+  
     if (Object.keys(dataForUser).length > 0) {
       const userRef = doc(firestore, 'users', residentId);
       await updateDoc(userRef, dataForUser);
@@ -259,6 +265,12 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const requestRef = doc(firestore, 'documentRequests', id);
     updateDocumentNonBlocking(requestRef, { status });
   };
+  
+  const deleteDocumentRequest = (id: string) => {
+    if (!firestore) return;
+    const requestRef = doc(firestore, 'documentRequests', id);
+    deleteDocumentNonBlocking(requestRef);
+  };
 
   const addUser = async (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
@@ -284,9 +296,30 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const updateUser = async (dataToUpdate: Partial<User> & { id: string }) => {
     if (!firestore || !dataToUpdate.id) return;
-    const userRef = doc(firestore, 'users', dataToUpdate.id);
-    await updateDoc(userRef, dataToUpdate);
+    const { id, ...updateData } = dataToUpdate;
+    const userRef = doc(firestore, 'users', id);
+    await updateDoc(userRef, updateData);
+  
+    // If it's a resident user, update the resident doc too
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists() && userSnap.data().role === 'Resident' && userSnap.data().residentId) {
+      const residentRef = doc(firestore, 'residents', userSnap.data().residentId);
+      const dataForResident: Partial<Resident> = {};
+      if (updateData.name) {
+        // Attempt to split name, this is a bit fragile
+        const nameParts = updateData.name.split(' ');
+        dataForResident.firstName = nameParts[0];
+        dataForResident.lastName = nameParts.slice(1).join(' ');
+      }
+      if (updateData.avatarUrl) {
+        dataForResident.avatarUrl = updateData.avatarUrl;
+      }
+      if (Object.keys(dataForResident).length > 0) {
+        await updateDoc(residentRef, dataForResident);
+      }
+    }
   };
+  
 
   const deleteUser = (userId: string) => {
     if (!firestore) return;
@@ -307,6 +340,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       documentRequests,
       addDocumentRequest,
       updateDocumentRequestStatus,
+      deleteDocumentRequest,
       users,
       addUser,
       updateUser,
