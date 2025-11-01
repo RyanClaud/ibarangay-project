@@ -11,6 +11,7 @@ interface AppContextType {
   logout: () => void;
   residents: Resident[];
   setResidents: (residents: Resident[]) => void;
+  addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl'>) => void;
   documentRequests: DocumentRequest[];
   setDocumentRequests: (requests: DocumentRequest[]) => void;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
@@ -42,6 +43,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setCurrentUser(null);
+  };
+
+  const addResident = (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl'>) => {
+    const newIdNumber = Math.max(...residents.map(r => parseInt(r.id.replace('RES', ''))), 0) + 1;
+    const newUserIdNumber = Math.max(...residents.map(r => parseInt(r.userId.replace('R-', ''))), 1000) + 1;
+
+    const newResident: Resident = {
+      ...newResidentData,
+      id: `RES${String(newIdNumber).padStart(3, '0')}`,
+      userId: `R-${newUserIdNumber}`,
+      avatarUrl: `https://picsum.photos/seed/${newIdNumber}/100/100`,
+    };
+    setResidents(prev => [newResident, ...prev]);
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
@@ -76,6 +90,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateUser = (updatedUser: User) => {
     setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    setResidents(prev => prev.map(r => r.id === updatedUser.residentId ? { ...r, firstName: updatedUser.name.split(' ')[0], lastName: updatedUser.name.split(' ')[1] || '' } : r));
   };
 
   const deleteUser = (userId: string) => {
@@ -90,6 +105,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       logout,
       residents,
       setResidents,
+      addResident,
       documentRequests,
       setDocumentRequests,
       addDocumentRequest,

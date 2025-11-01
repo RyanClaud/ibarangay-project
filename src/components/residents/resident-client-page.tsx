@@ -25,12 +25,10 @@ import { AddResidentDialog } from "./add-resident-dialog";
 import { EditResidentDialog } from "./edit-resident-dialog";
 import { DeleteResidentDialog } from "./delete-resident-dialog";
 import { useRouter } from "next/navigation";
+import { useAppContext } from "@/contexts/app-context";
 
-interface ResidentClientPageProps {
-  data: Resident[];
-}
-
-export function ResidentClientPage({ data: initialData }: ResidentClientPageProps) {
+export function ResidentClientPage({ data: initialData }: { data: Resident[] }) {
+  const { residents, addResident } = useAppContext();
   const [data, setData] = React.useState(initialData);
   const [filter, setFilter] = React.useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
@@ -38,7 +36,7 @@ export function ResidentClientPage({ data: initialData }: ResidentClientPageProp
   const [residentToDelete, setResidentToDelete] = React.useState<Resident | null>(null);
   const router = useRouter();
 
-  const filteredData = data.filter(
+  const filteredData = residents.filter(
     (resident) =>
       resident.firstName.toLowerCase().includes(filter.toLowerCase()) ||
       resident.lastName.toLowerCase().includes(filter.toLowerCase()) ||
@@ -51,16 +49,7 @@ export function ResidentClientPage({ data: initialData }: ResidentClientPageProp
   });
 
   const handleAddResident = (newResident: Omit<Resident, 'id' | 'avatarUrl' | 'userId'>) => {
-    const newIdNumber = Math.max(...data.map(r => parseInt(r.id.replace('RES', ''))), 0) + 1;
-    const newUserIdNumber = Math.max(...data.map(r => parseInt(r.userId.replace('R-', ''))), 1000) + 1;
-
-    const residentToAdd: Resident = {
-      ...newResident,
-      id: `RES${String(newIdNumber).padStart(3, '0')}`,
-      userId: `R-${newUserIdNumber}`,
-      avatarUrl: `https://picsum.photos/seed/${newIdNumber}/100/100`,
-    };
-    setData(prevData => [residentToAdd, ...prevData]);
+    addResident(newResident);
   };
 
   const handleUpdateResident = (updatedResident: Resident) => {
