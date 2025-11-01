@@ -135,7 +135,7 @@ export function RequestForm() {
             )}
           </CardContent>
           <CardFooter>
-            <Button type="submit" disabled={!resident}>Submit Request</Button>
+            <Button type="submit">Submit Request</Button>
           </CardFooter>
         </form>
       </Form>
