@@ -29,15 +29,20 @@ export default function SettingsPage() {
     const fetchConfig = async () => {
       if (!firestore) return;
       setIsLoading(true);
-      const configRef = doc(firestore, 'barangayConfig', 'main');
-      const configSnap = await getDoc(configRef);
-      if (configSnap.exists()) {
-        const configData = configSnap.data();
-        setBarangayName(configData.name);
-        setAddress(configData.address);
-        setSealLogoUrl(configData.sealLogoUrl);
+      try {
+        const configRef = doc(firestore, 'barangayConfig', 'main');
+        const configSnap = await getDoc(configRef);
+        if (configSnap.exists()) {
+          const configData = configSnap.data();
+          setBarangayName(configData.name);
+          setAddress(configData.address);
+          setSealLogoUrl(configData.sealLogoUrl);
+        }
+      } catch (e) {
+        console.error("Failed to fetch barangay config:", e);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
     fetchConfig();
   }, [firestore]);
@@ -52,13 +57,16 @@ export default function SettingsPage() {
   };
 
   const handleSaveChanges = async () => {
-    if (!firestore || !storage) return;
+    if (!firestore || !storage) {
+        toast({ title: "Firebase not initialized.", description: "Please try again later.", variant: "destructive"});
+        return;
+    };
     setIsSaving(true);
     let uploadedLogoUrl = sealLogoUrl;
 
     if (newSealFile) {
       try {
-        const storageRef = ref(storage, `barangay-seals/${newSealFile.name}`);
+        const storageRef = ref(storage, `barangay-seals/${new Date().toISOString()}-${newSealFile.name}`);
         const uploadResult = await uploadBytes(storageRef, newSealFile);
         uploadedLogoUrl = await getDownloadURL(uploadResult.ref);
       } catch (error) {
@@ -110,9 +118,11 @@ export default function SettingsPage() {
               <CardDescription>Update the official details of your barangay.</CardDescription>
             </CardHeader>
             {isLoading ? (
-              <div className="flex justify-center items-center p-8">
-                <Loader2 className="animate-spin" />
-              </div>
+              <CardContent>
+                <div className="flex justify-center items-center p-8">
+                  <Loader2 className="animate-spin h-8 w-8 text-primary" />
+                </div>
+              </CardContent>
             ) : (
               <>
                 <CardContent className="space-y-6">
@@ -127,7 +137,7 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <Label htmlFor="logo">Barangay Seal/Logo</Label>
                     <div className="flex items-center gap-4">
-                      {sealLogoUrl && <Image src={sealLogoUrl} alt="Barangay Seal" width={64} height={64} className="rounded-full bg-muted" />}
+                      {sealLogoUrl && <Image src={sealLogoUrl} alt="Barangay Seal" width={64} height={64} className="rounded-full bg-muted object-cover" />}
                       <Input id="logo" type="file" onChange={handleFileChange} accept="image/*" />
                     </div>
                   </div>
@@ -150,7 +160,7 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle>System Maintenance</CardTitle>
                     <CardDescription>Manage system logs, backups, and restores.</CardDescription>
-                </Header>
+                </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
                         <h4 className="font-semibold">Database</h4>
