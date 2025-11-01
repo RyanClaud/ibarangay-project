@@ -7,16 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAppContext } from '@/contexts/app-context';
 import { toast } from '@/hooks/use-toast';
 import { Logo } from '@/components/logo';
 import { Loader2 } from 'lucide-react';
 import { useAuth as useAppAuth } from '@/hooks/use-auth';
 import { initiateEmailSignIn } from '@/firebase';
+import { useFirebase } from '@/firebase/provider';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { auth } = useAppContext().useFirebase();
+  const { auth } = useFirebase();
   const { user: authenticatedUser, isLoading: isAuthLoading } = useAppAuth();
   const [credential, setCredential] = useState('');
   const [password, setPassword] = useState('');
@@ -41,13 +41,10 @@ export default function LoginPage() {
     }
     setIsProcessingLogin(true);
 
-    // We call initiateEmailSignIn directly, which is non-blocking.
-    // We add a listener to see if it succeeded or failed.
+    // We call initiateEmailSignIn directly.
+    // The onAuthStateChanged listener in the AppContext will handle success,
+    // and the .catch() here will handle failure.
     initiateEmailSignIn(auth, credential, password)
-      .then(() => {
-        // Don't do anything on success here.
-        // The onAuthStateChanged listener in the AppContext will handle the redirect.
-      })
       .catch((error) => {
         // If Firebase returns an error, show it to the user.
         let description = 'An unknown error occurred.';
