@@ -24,14 +24,14 @@ interface AppContextType {
   logout: () => void;
   residents: Resident[] | null;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => Promise<void>;
-  updateResident: (resident: Resident) => Promise<void>;
+  updateResident: (residentId: string, dataToUpdate: Partial<Resident>) => Promise<void>;
   deleteResident: (residentId: string) => void;
   documentRequests: DocumentRequest[] | null;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
   users: User[] | null;
   addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => Promise<void>;
-  updateUser: (user: User) => Promise<void>;
+  updateUser: (user: User | Partial<User>) => Promise<void>;
   deleteUser: (userId: string) => void;
   isDataLoading: boolean;
   login: (credential: string, password: string) => Promise<void>;
@@ -56,7 +56,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     return collection(firestore, 'residents');
   }, [firestore, currentUser]);
   const { data: allResidents, isLoading: isAllResidentsLoading } = useCollection<Resident>(allResidentsQuery);
-
+  
   // --- Resident-specific Queries ---
   const singleUserDocRef = useMemoFirebase(() => {
     if (!firestore || !currentUser?.id) return null;
@@ -91,12 +91,15 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   // --- Document Requests Query (works for both roles) ---
   const documentRequestsQuery = useMemoFirebase(() => {
     if (!firestore || !currentUser) return null;
-    if (currentUser.role === 'Resident') {
+    if (currentUser.role === 'Resident' && currentUser.id) {
       // Residents see only their own requests
       return query(collection(firestore, 'documentRequests'), where('residentId', '==', currentUser.id));
     }
-    // Staff see all requests
-    return collection(firestore, 'documentRequests');
+    if (currentUser.role !== 'Resident') {
+       // Staff see all requests
+      return collection(firestore, 'documentRequests');
+    }
+    return null;
   }, [firestore, currentUser]);
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
@@ -104,8 +107,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const login = async (credential: string, password: string) => {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
-  
+
     const email = credential;
+    // Attempt email/password sign-in directly
     await signInWithEmailAndPassword(auth, email, password);
   };
 
@@ -183,18 +187,29 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateResident = async (updatedResident: Resident) => {
+  const updateResident = async (residentId: string, dataToUpdate: Partial<Resident>) => {
     if (!firestore) return;
     
-    const residentRef = doc(firestore, 'residents', updatedResident.id);
-    await updateDoc(residentRef, { ...updatedResident });
+    const residentRef = doc(firestore, 'residents', residentId);
+    await updateDoc(residentRef, dataToUpdate);
   
-    // Also update the associated user document
-    const userRef = doc(firestore, 'users', updatedResident.id);
-    await updateDoc(userRef, { 
-      name: `${updatedResident.firstName} ${updatedResident.lastName}`,
-      avatarUrl: updatedResident.avatarUrl,
-    });
+    // Also update the associated user document if needed
+    const dataForUser: Partial<User> = {};
+    if (dataToUpdate.firstName || dataToUpdate.lastName) {
+      const residentDoc = await getDoc(residentRef);
+      if (residentDoc.exists()) {
+        const residentData = residentDoc.data() as Resident;
+        dataForUser.name = `${residentData.firstName} ${residentData.lastName}`;
+      }
+    }
+    if (dataToUpdate.avatarUrl) {
+      dataForUser.avatarUrl = dataToUpdate.avatarUrl;
+    }
+
+    if (Object.keys(dataForUser).length > 0) {
+      const userRef = doc(firestore, 'users', residentId);
+      await updateDoc(userRef, dataForUser);
+    }
   };
 
   const deleteResident = async (residentId: string) => {
@@ -268,11 +283,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateUser = async (updatedUser: User) => {
-    if (!firestore) return;
-    
-    const userRef = doc(firestore, 'users', updatedUser.id);
-    await updateDoc(userRef, { ...updatedUser });
+  const updateUser = async (user: User | Partial<User>) => {
+    if (!firestore || !user.id) return;
+    const userRef = doc(firestore, 'users', user.id);
+    await updateDoc(userRef, user);
   };
 
   const deleteUser = (userId: string) => {

@@ -39,7 +39,7 @@ type UserFormData = z.infer<typeof userSchema>;
 interface EditUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpdateUser: (user: User) => void;
+  onUpdateUser: (user: User | Partial<User>) => void;
   user: User;
 }
 
@@ -62,7 +62,7 @@ export function EditUserDialog({ isOpen, onClose, onUpdateUser, user }: EditUser
 
   const onSubmit = (data: UserFormData) => {
     onUpdateUser({
-        ...user,
+        id: user.id,
         ...data,
     });
     toast({

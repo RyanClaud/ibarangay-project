@@ -49,8 +49,8 @@ export function ResidentClientPage() {
     addResident(newResident);
   };
 
-  const handleUpdateResident = (updatedResident: Resident) => {
-    updateResident(updatedResident);
+  const handleUpdateResident = (residentId: string, dataToUpdate: Partial<Resident>) => {
+    updateResident(residentId, dataToUpdate);
     setResidentToEdit(null);
   };
 

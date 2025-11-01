@@ -47,7 +47,7 @@ export function UserManagementClientPage() {
     await addUser(newUser);
   };
 
-  const handleUpdateUser = (updatedUser: User) => {
+  const handleUpdateUser = (updatedUser: User | Partial<User>) => {
     updateUser(updatedUser);
     setUserToEdit(null);
   };

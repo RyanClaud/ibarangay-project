@@ -48,7 +48,7 @@ type ResidentFormData = z.infer<typeof residentSchema>;
 interface EditResidentDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpdateResident: (resident: Resident) => void;
+  onUpdateResident: (residentId: string, dataToUpdate: Partial<Resident>) => void;
   resident: Resident;
 }
 
@@ -79,11 +79,11 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
   }, [resident, form]);
 
   const onSubmit = (data: ResidentFormData) => {
-    onUpdateResident({
-      ...resident,
+    const dataToUpdate: Partial<Resident> = {
       ...data,
       address: `${data.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
-    });
+    }
+    onUpdateResident(resident.id, dataToUpdate);
     toast({
         title: 'Resident Updated',
         description: `${data.firstName} ${data.lastName}'s information has been updated.`,

@@ -49,11 +49,12 @@ function ProfilePhotoCard() {
             const uploadResult = await uploadBytes(storageRef, avatarFile);
             const avatarUrl = await getDownloadURL(uploadResult.ref);
             
-            await updateUser({ ...currentUser, avatarUrl });
+            await updateUser({ id: currentUser.id, avatarUrl });
 
             toast({ title: "Profile Picture Updated", description: "Your new picture has been saved." });
             setAvatarFile(null);
         } catch (error: any) {
+            console.error("Error saving profile picture:", error);
             toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
         } finally {
             setIsSaving(false);

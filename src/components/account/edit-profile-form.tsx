@@ -86,22 +86,17 @@ export function EditProfileForm() {
     }
     setIsSaving(true);
     try {
-      let avatarUrl = resident.avatarUrl;
+      const dataToUpdate: Partial<Resident> = { ...data };
 
       if (avatarFile) {
         const storageRef = ref(storage, `profile-pictures/${resident.id}/${avatarFile.name}`);
         const uploadResult = await uploadBytes(storageRef, avatarFile);
-        avatarUrl = await getDownloadURL(uploadResult.ref);
+        dataToUpdate.avatarUrl = await getDownloadURL(uploadResult.ref);
       }
       
-      const updatedResident: Resident = {
-        ...resident,
-        ...data,
-        avatarUrl,
-        address: `${data.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
-      };
+      dataToUpdate.address = `${data.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`;
 
-      await updateResident(updatedResident);
+      await updateResident(resident.id, dataToUpdate);
       toast({
         title: 'Profile Updated',
         description: 'Your personal information has been saved.',
