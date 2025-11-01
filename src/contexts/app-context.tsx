@@ -27,8 +27,8 @@ interface AppContextType {
   updateResident: (residentId: string, dataToUpdate: Partial<Resident>) => Promise<void>;
   deleteResident: (residentId: string) => void;
   documentRequests: DocumentRequest[] | null;
-  addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
-  updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
+  addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status' | 'referenceNumber'>) => void;
+  updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus, paymentDetails?: DocumentRequest['paymentDetails']) => void;
   deleteDocumentRequest: (id: string) => void;
   users: User[] | null;
   addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => Promise<void>;
@@ -214,11 +214,15 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       console.error("Error creating resident:", error);
       if (error.code === 'auth/email-already-in-use') {
           // If the creation failed, re-sign in the admin immediately.
-          await reSignInAdmin();
+          if (auth.currentUser?.email !== adminCredentials?.email) {
+            await reSignInAdmin();
+          }
           throw new Error("An account for this email already exists.");
       }
       // Re-sign-in admin on other errors too
-      await reSignInAdmin();
+      if (auth.currentUser?.email !== adminCredentials?.email) {
+        await reSignInAdmin();
+      }
       throw new Error("Failed to create resident account.");
     }
   };
@@ -263,7 +267,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     await batch.commit();
   };
 
-  const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
+  const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status' | 'referenceNumber'>) => {
     if (!firestore || !currentUser?.residentId || !currentUser.name) {
        toast({
           title: 'Error',
@@ -275,6 +279,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
     const newId = doc(collection(firestore, 'documentRequests')).id;
     const newIdNumber = (documentRequests?.length ?? 0) + 1;
+    const trackingNumber = `IBGY-${new Date().getFullYear().toString().slice(2)}${(new Date().getMonth() + 1).toString().padStart(2, '0')}${new Date().getDate().toString().padStart(2, '0')}${String(newIdNumber).padStart(3, '0')}`;
     const newRequest: DocumentRequest = {
         ...request,
         residentId: currentUser.residentId,
@@ -282,7 +287,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         id: newId,
         requestDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
         status: 'Pending',
-        trackingNumber: `IBGY-${new Date().getFullYear().toString().slice(2)}${(new Date().getMonth() + 1).toString().padStart(2, '0')}${new Date().getDate().toString().padStart(2, '0')}${String(newIdNumber).padStart(3, '0')}`,
+        trackingNumber: trackingNumber,
+        referenceNumber: trackingNumber, // Use tracking number as reference number
     };
     const requestRef = doc(firestore, 'documentRequests', newId);
     setDocumentNonBlocking(requestRef, newRequest, { merge: true });
@@ -292,7 +298,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     });
   };
 
-  const updateDocumentRequestStatus = async (id: string, status: DocumentRequestStatus) => {
+  const updateDocumentRequestStatus = async (id: string, status: DocumentRequestStatus, paymentDetails?: DocumentRequest['paymentDetails']) => {
     if (!firestore) return;
 
     const requestRef = doc(firestore, 'documentRequests', id);
@@ -316,12 +322,13 @@ function AppProviderContent({ children }: { children: ReactNode }) {
                 };
             }
         }
+        updateData.approvalDate = new Date().toISOString();
     }
     if (status === 'Released') {
       updateData.releaseDate = new Date().toISOString();
     }
-    if (status === 'Approved') {
-      updateData.approvalDate = new Date().toISOString();
+    if (status === 'Paid' && paymentDetails) {
+        updateData.paymentDetails = paymentDetails;
     }
 
 
@@ -357,10 +364,14 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
     } catch (error: any) {
         if (error.code === 'auth/email-already-in-use') {
-            await reSignInAdmin();
+            if (auth.currentUser?.email !== adminCredentials?.email) {
+              await reSignInAdmin();
+            }
             throw new Error("An account for this email already exists.");
         }
-        await reSignInAdmin();
+        if (auth.currentUser?.email !== adminCredentials?.email) {
+          await reSignInAdmin();
+        }
         throw error;
     }
   };

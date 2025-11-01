@@ -34,9 +34,15 @@ export type DocumentRequest = {
   requestDate: string;
   status: DocumentRequestStatus;
   trackingNumber: string;
+  referenceNumber: string;
   amount: number;
   approvalDate?: string;
   releaseDate?: string;
+  paymentDetails?: {
+    method: string;
+    transactionId: string;
+    paymentDate: string;
+  };
   residentSnapshot?: {
     firstName: string;
     lastName: string;

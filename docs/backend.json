@@ -146,6 +146,25 @@
         "amountDue": {
           "type": "number",
           "description": "Amount due for the requested document."
+        },
+        "paymentDetails": {
+          "type": "object",
+          "description": "Details of the payment made for the request.",
+          "properties": {
+            "method": {
+              "type": "string",
+              "description": "Payment method used (e.g., GCash, Cash)."
+            },
+            "transactionId": {
+              "type": "string",
+              "description": "The transaction ID from the payment provider."
+            },
+            "paymentDate": {
+              "type": "string",
+              "format": "date-time",
+              "description": "The date and time of the payment."
+            }
+          }
         }
       },
       "required": [
@@ -153,7 +172,8 @@
         "residentId",
         "documentType",
         "requestDate",
-        "status"
+        "status",
+        "referenceNumber"
       ]
     },
     "Payment": {
