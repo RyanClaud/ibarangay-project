@@ -40,12 +40,15 @@ export default function SettingsPage() {
         }
       } catch (e) {
         console.error("Failed to fetch barangay config:", e);
+        toast({ title: "Error", description: "Could not fetch barangay settings.", variant: "destructive"});
       } finally {
         setIsLoading(false);
       }
     };
     if (areServicesAvailable) {
         fetchConfig();
+    } else {
+        setIsLoading(false);
     }
   }, [firestore, areServicesAvailable]);
 
@@ -64,22 +67,19 @@ export default function SettingsPage() {
         return;
     };
     setIsSaving(true);
+    
     let uploadedLogoUrl = sealLogoUrl;
 
-    if (newSealFile) {
-      try {
+    try {
+      if (newSealFile) {
+        console.log("Uploading new seal file...");
         const storageRef = ref(storage, `barangay-seals/${new Date().toISOString()}-${newSealFile.name}`);
         const uploadResult = await uploadBytes(storageRef, newSealFile);
         uploadedLogoUrl = await getDownloadURL(uploadResult.ref);
-      } catch (error) {
-        console.error("Error uploading file: ", error);
-        toast({ title: "Upload Failed", description: "Could not upload the new logo.", variant: "destructive" });
-        setIsSaving(false);
-        return;
+        console.log("Upload complete, URL:", uploadedLogoUrl);
       }
-    }
 
-    try {
+      console.log("Saving settings to Firestore...");
       const configRef = doc(firestore, 'barangayConfig', 'main');
       await setDoc(configRef, {
         id: 'main',
@@ -89,12 +89,13 @@ export default function SettingsPage() {
       }, { merge: true });
 
       toast({ title: "Settings Saved", description: "Barangay details have been updated." });
-    } catch (error) {
+      setNewSealFile(null); // Clear the file after saving
+    } catch (error: any) {
       console.error("Error saving settings: ", error);
-      toast({ title: "Save Failed", description: "Could not save settings to the database.", variant: "destructive" });
+      toast({ title: "Save Failed", description: error.message || "Could not save settings.", variant: "destructive" });
     } finally {
       setIsSaving(false);
-      setNewSealFile(null); // Clear the file after saving
+      console.log("Finished save attempt.");
     }
   };
 
@@ -139,7 +140,7 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <Label htmlFor="logo">Barangay Seal/Logo</Label>
                     <div className="flex items-center gap-4">
-                      {sealLogoUrl && <Image src={sealLogoUrl} alt="Barangay Seal" width={64} height={64} className="rounded-full bg-muted object-cover" />}
+                      {sealLogoUrl && <Image src={sealLogoUrl} alt="Barangay Seal" width={64} height={64} className="rounded-full bg-muted object-cover" unoptimized />}
                       <Input id="logo" type="file" onChange={handleFileChange} accept="image/*" />
                     </div>
                   </div>
