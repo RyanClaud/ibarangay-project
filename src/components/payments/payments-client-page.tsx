@@ -11,33 +11,24 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, MoreHorizontal } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { CheckCircle } from "lucide-react";
 import type { DocumentRequest } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
+import { useAppContext } from "@/contexts/app-context";
 
-interface PaymentsClientPageProps {
-  data: DocumentRequest[];
-}
-
-export function PaymentsClientPage({ data: initialData }: PaymentsClientPageProps) {
-  const [data, setData] = React.useState(initialData);
+export function PaymentsClientPage({ data: initialData }: { data: DocumentRequest[] }) {
+  const { documentRequests, updateDocumentRequestStatus } = useAppContext();
   const [filter, setFilter] = React.useState("");
 
-  const filteredData = data.filter(
+  const filteredData = documentRequests.filter(
     (request) =>
-      request.residentName.toLowerCase().includes(filter.toLowerCase()) ||
-      request.trackingNumber.toLowerCase().includes(filter.toLowerCase())
+      request.status === 'Approved' &&
+      (request.residentName.toLowerCase().includes(filter.toLowerCase()) ||
+      request.trackingNumber.toLowerCase().includes(filter.toLowerCase()))
   );
 
   const handleConfirmPayment = (requestId: string) => {
-    setData(prevData => prevData.filter(req => req.id !== requestId));
+    updateDocumentRequestStatus(requestId, 'Paid');
     toast({
       title: "Payment Confirmed",
       description: `Request ${requestId} has been marked as paid.`,

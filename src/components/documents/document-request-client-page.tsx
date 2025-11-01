@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -11,22 +12,21 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, CheckCircle, XCircle, FileSearch, Check } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import type { DocumentRequest, DocumentRequestStatus } from "@/lib/types";
 import { Badge } from "../ui/badge";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-interface DocumentRequestClientPageProps {
-  data: DocumentRequest[];
-}
+import { useAppContext } from "@/contexts/app-context";
+import { toast } from "@/hooks/use-toast";
 
 const statusColors: Record<DocumentRequestStatus, string> = {
   Pending: "bg-amber-100 text-amber-800 border-amber-200",
@@ -38,17 +38,32 @@ const statusColors: Record<DocumentRequestStatus, string> = {
 
 const TABS: DocumentRequestStatus[] = ["Pending", "Approved", "Paid", "Released", "Rejected"];
 
-export function DocumentRequestClientPage({ data: initialData }: DocumentRequestClientPageProps) {
-  const [data, setData] = React.useState(initialData);
+export function DocumentRequestClientPage({ data }: { data: DocumentRequest[] }) {
+  const { documentRequests, updateDocumentRequestStatus, currentUser } = useAppContext();
   const [filter, setFilter] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<DocumentRequestStatus | 'All'>('Pending');
+  const router = useRouter();
 
-  const filteredData = data.filter(
+  const handleStatusChange = (id: string, status: DocumentRequestStatus) => {
+    updateDocumentRequestStatus(id, status);
+    toast({
+      title: "Request Updated",
+      description: `Request status has been changed to ${status}.`,
+    });
+  };
+
+  const handleViewCertificate = (requestId: string) => {
+    router.push(`/documents/certificate/${requestId}`);
+  };
+
+  const filteredData = documentRequests.filter(
     (request) =>
       (request.residentName.toLowerCase().includes(filter.toLowerCase()) ||
       request.trackingNumber.toLowerCase().includes(filter.toLowerCase())) &&
       (activeTab === 'All' || request.status === activeTab)
-  );
+  ).sort((a,b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
+
+  const canApprove = currentUser?.role === 'Admin' || currentUser?.role === 'Barangay Captain' || currentUser?.role === 'Secretary';
 
   return (
     <div className="space-y-4">
@@ -107,9 +122,36 @@ export function DocumentRequestClientPage({ data: initialData }: DocumentRequest
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
-                        <DropdownMenuItem>Approve</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Reject</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push(`/residents/${request.residentId}`)}>
+                          <FileSearch /> View Resident
+                        </DropdownMenuItem>
+
+                        {(request.status === 'Paid' || request.status === 'Released') && (
+                          <DropdownMenuItem onClick={() => handleViewCertificate(request.id)}>
+                            <FileSearch /> View Certificate
+                          </DropdownMenuItem>
+                        )}
+                        
+                        {canApprove && (
+                          <>
+                            <DropdownMenuSeparator />
+                            {request.status === 'Pending' && (
+                              <DropdownMenuItem onClick={() => handleStatusChange(request.id, 'Approved')}>
+                                <CheckCircle /> Approve
+                              </DropdownMenuItem>
+                            )}
+                             {request.status === 'Approved' && currentUser?.role === 'Treasurer' && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(request.id, 'Paid')}>
+                                    <Check /> Mark as Paid
+                                </DropdownMenuItem>
+                            )}
+                            {request.status !== 'Rejected' && request.status !== 'Released' &&(
+                              <DropdownMenuItem className="text-destructive" onClick={() => handleStatusChange(request.id, 'Rejected')}>
+                                <XCircle /> Reject
+                              </DropdownMenuItem>
+                            )}
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -118,7 +160,7 @@ export function DocumentRequestClientPage({ data: initialData }: DocumentRequest
             ) : (
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">
-                  No requests found.
+                  No requests found for this status.
                 </TableCell>
               </TableRow>
             )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -11,6 +12,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import type { DocumentRequest, DocumentRequestStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Button } from "../ui/button";
+import { FileSearch } from "lucide-react";
+import { useAppContext } from "@/contexts/app-context";
 
 interface RequestHistoryProps {
   data: DocumentRequest[];
@@ -25,6 +29,14 @@ const statusColors: Record<DocumentRequestStatus, string> = {
 };
 
 export function RequestHistory({ data }: RequestHistoryProps) {
+  const router = useRouter();
+  const { currentUser } = useAppContext();
+  const isResident = currentUser?.role === 'Resident';
+
+  const handleViewCertificate = (requestId: string) => {
+    router.push(`/documents/certificate/${requestId}`);
+  };
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -35,6 +47,7 @@ export function RequestHistory({ data }: RequestHistoryProps) {
             <TableHead>Date</TableHead>
             <TableHead>Amount</TableHead>
             <TableHead>Status</TableHead>
+            {isResident && <TableHead className="text-right">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -50,11 +63,21 @@ export function RequestHistory({ data }: RequestHistoryProps) {
                     {request.status}
                   </Badge>
                 </TableCell>
+                {isResident && (
+                  <TableCell className="text-right">
+                    {(request.status === 'Paid' || request.status === 'Released') && (
+                      <Button variant="outline" size="sm" onClick={() => handleViewCertificate(request.id)}>
+                        <FileSearch className="mr-2"/>
+                        View Certificate
+                      </Button>
+                    )}
+                  </TableCell>
+                )}
               </TableRow>
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
+              <TableCell colSpan={isResident ? 6 : 5} className="h-24 text-center">
                 You have no document requests.
               </TableCell>
             </TableRow>

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode } from 'react';
-import type { User, Resident, DocumentRequest } from '@/lib/types';
+import type { User, Resident, DocumentRequest, DocumentRequestStatus } from '@/lib/types';
 import { documentRequests as initialDocumentRequests, residents as initialResidents, findUserByCredential } from '@/lib/data';
 
 interface AppContextType {
@@ -14,6 +14,7 @@ interface AppContextType {
   documentRequests: DocumentRequest[];
   setDocumentRequests: (requests: DocumentRequest[]) => void;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
+  updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -47,6 +48,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setDocumentRequests(prev => [newRequest, ...prev]);
   };
 
+  const updateDocumentRequestStatus = (id: string, status: DocumentRequestStatus) => {
+    setDocumentRequests(prev => 
+      prev.map(req => 
+        req.id === id ? { ...req, status } : req
+      )
+    );
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -57,7 +66,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setResidents,
       documentRequests,
       setDocumentRequests,
-      addDocumentRequest
+      addDocumentRequest,
+      updateDocumentRequestStatus,
     }}>
       {children}
     </AppContext.Provider>
