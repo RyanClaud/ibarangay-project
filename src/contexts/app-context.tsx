@@ -7,14 +7,11 @@ import {
   useCollection,
   useFirebase,
   useMemoFirebase,
-  addDocumentNonBlocking,
-  updateDocumentNonBlocking,
   setDocumentNonBlocking,
+  updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
   initiateEmailSignIn,
   initiateSignOut,
-  FirestorePermissionError,
-  errorEmitter
 } from '@/firebase';
 import { collection, doc, where, query, getDocs, writeBatch } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -99,7 +96,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   // 1. Fetch users only after Firebase Auth has confirmed a user is logged in.
   const usersQuery = useMemoFirebase(() => {
-    if (isAuthLoading || !firebaseUser) return null; // Don't query if no user or auth is loading
+    if (!firestore || isAuthLoading || !firebaseUser) return null; // Don't query if no user or auth is loading
     return collection(firestore, 'users');
   }, [firestore, firebaseUser, isAuthLoading]);
   const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
@@ -128,43 +125,34 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
   // 4. Consolidate loading state.
-  const isDataLoading = isAuthLoading || (!!firebaseUser && (isUsersLoading || !currentUser || isResidentsLoading || isRequestsLoading));
+  const isDataLoading = isAuthLoading || (!!firebaseUser && (!users || isUsersLoading || !currentUser || isResidentsLoading || isRequestsLoading));
 
   const login = async (credential: string, password: string): Promise<User | undefined> => {
     if (!auth || !firestore) {
       throw new Error("Firebase not initialized");
     }
-
-    let userToLogin: User | undefined;
-    
-    // First, attempt to find user by resident ID (for residents)
-    if (credential.toLowerCase().startsWith('r-')) {
-        const q = query(collection(firestore, "users"), where("userId", "==", credential));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            userToLogin = querySnapshot.docs[0].data() as User;
-        }
-    } else { // Otherwise, find by email (for staff)
-        const q = query(collection(firestore, "users"), where("email", "==", credential));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            userToLogin = querySnapshot.docs[0].data() as User;
-        }
+  
+    // For non-email credentials (like Resident IDs), we still need to find the associated email.
+    // However, this query should only happen if the credential isn't an email.
+    let emailToSignIn = credential;
+  
+    if (!credential.includes('@')) {
+      // It's likely a resident ID, find the corresponding user to get their email.
+      const q = query(collection(firestore, "users"), where("userId", "==", credential));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0].data() as User;
+        emailToSignIn = userDoc.email;
+      } else {
+        throw new Error("No user found with that ID.");
+      }
     }
-
-    if (!userToLogin) {
-      const allUsers = (await getDocs(collection(firestore, 'users'))).docs.map(doc => doc.data() as User);
-      userToLogin = findUserByCredential(credential, allUsers);
-    }
-
-
-    if (!userToLogin) {
-      throw new Error("No user found with that ID or email.");
-    }
-    
-    initiateEmailSignIn(auth, userToLogin.email, password);
-
-    return userToLogin;
+  
+    // Now, initiate sign-in with the resolved email.
+    initiateEmailSignIn(auth, emailToSignIn, password);
+  
+    // Return undefined because the actual user state is now handled reactively by onAuthStateChanged.
+    return undefined;
   };
 
   const logout = () => {
