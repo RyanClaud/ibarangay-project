@@ -24,8 +24,10 @@ export default function DashboardPage() {
   }, [user, residents]);
   
   const residentRequests = useMemo(() => {
-    if (user?.role === 'Resident' && user.residentId && documentRequests) {
-      return documentRequests.filter(req => req.residentId === user.residentId);
+    if (user?.role === 'Resident' && documentRequests) {
+      // The query in app-context already filters for the current resident,
+      // so we can just use the data as is.
+      return documentRequests;
     }
     return [];
   }, [user, documentRequests]);
@@ -80,7 +82,7 @@ export default function DashboardPage() {
               Fill out the form below. Your information will be auto-filled.
             </p>
         </div>
-        <RequestForm resident={residentInfo} />
+        <RequestForm />
   
         <div className="pt-4">
           <h2 className="text-2xl font-bold font-headline tracking-tight">My Request History</h2>

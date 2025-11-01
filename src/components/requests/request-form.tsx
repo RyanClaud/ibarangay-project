@@ -19,45 +19,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import type { DocumentType, Resident } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
 import { useAppContext } from "@/contexts/app-context";
-import { useEffect } from "react";
+import { useMemo } from "react";
 
 const formSchema = z.object({
-  userId: z.string().min(1, "User ID is required."),
   documentType: z.enum(["Barangay Clearance", "Certificate of Residency", "Certificate of Indigency", "Business Permit", "Good Moral Character Certificate", "Solo Parent Certificate"]),
 });
 
-interface RequestFormProps {
-  resident?: Resident;
-}
-
-export function RequestForm({ resident }: RequestFormProps) {
-  const { addDocumentRequest } = useAppContext();
+export function RequestForm() {
+  const { addDocumentRequest, currentUser, residents } = useAppContext();
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      userId: resident?.userId || "",
       documentType: "Barangay Clearance",
     },
   });
 
-  useEffect(() => {
-    if (resident) {
-      form.setValue('userId', resident.userId);
+  const resident = useMemo(() => {
+    if (currentUser?.residentId && residents) {
+      return residents.find(res => res.id === currentUser.residentId);
     }
-  }, [resident, form]);
+    return null;
+  }, [currentUser, residents]);
 
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!resident) {
+    if (!currentUser || !currentUser.residentId || !resident) {
         toast({
             title: "Error",
-            description: "Resident information not found.",
+            description: "Could not identify the current resident. Please log in again.",
             variant: "destructive",
         });
         return;
@@ -86,8 +79,8 @@ export function RequestForm({ resident }: RequestFormProps) {
     }
 
     addDocumentRequest({
-        residentId: resident.id,
-        residentName: `${resident.firstName} ${resident.lastName}`,
+        residentId: currentUser.residentId,
+        residentName: currentUser.name,
         documentType: values.documentType,
         amount: amount,
     });
@@ -96,7 +89,7 @@ export function RequestForm({ resident }: RequestFormProps) {
       title: "Request Submitted!",
       description: `Your request for a ${values.documentType} has been received.`,
     });
-    form.reset({ userId: resident.userId, documentType: "Barangay Clearance" });
+    form.reset({ documentType: "Barangay Clearance" });
   }
 
   return (
@@ -107,20 +100,7 @@ export function RequestForm({ resident }: RequestFormProps) {
             <CardTitle>New Document Request</CardTitle>
             <CardDescription>Select a document to request.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-6 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="userId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Your User ID</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., R-1001" {...field} disabled />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <CardContent className="grid gap-6 md:grid-cols-1">
             <FormField
               control={form.control}
               name="documentType"
@@ -148,14 +128,14 @@ export function RequestForm({ resident }: RequestFormProps) {
             />
             {resident && (
               <div className="md:col-span-2 bg-muted p-4 rounded-lg space-y-2 border">
-                <h4 className="font-semibold">Resident Information (Auto-filled)</h4>
+                <h4 className="font-semibold">Your Information (Auto-filled)</h4>
                 <p className="text-sm"><span className="font-medium">Name:</span> {resident.firstName} {resident.lastName}</p>
                 <p className="text-sm"><span className="font-medium">Address:</span> {resident.address}</p>
               </div>
             )}
           </CardContent>
           <CardFooter>
-            <Button type="submit">Submit Request</Button>
+            <Button type="submit" disabled={!resident}>Submit Request</Button>
           </CardFooter>
         </form>
       </Form>
