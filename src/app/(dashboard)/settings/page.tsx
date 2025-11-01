@@ -23,7 +23,6 @@ function AdminSettings() {
   const [barangayName, setBarangayName] = useState("Barangay Mina De Oro");
   const [address, setAddress] = useState("Bongabong, Oriental Mindoro, Philippines");
   const [sealLogoUrl, setSealLogoUrl] = useState<string | null>(null);
-  const [newSealFile, setNewSealFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -54,15 +53,6 @@ function AdminSettings() {
     }
   }, [firestore, areServicesAvailable]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      setNewSealFile(file);
-      const previewUrl = URL.createObjectURL(file);
-      setSealLogoUrl(previewUrl);
-    }
-  };
-
   const handleSaveChanges = async () => {
     if (!firestore || !storage) {
         toast({ title: "Firebase not initialized.", description: "Please try again later.", variant: "destructive"});
@@ -70,42 +60,27 @@ function AdminSettings() {
     };
     setIsSaving(true);
     
-    let uploadedLogoUrl = sealLogoUrl;
-
     try {
-      if (newSealFile) {
-        console.log("Uploading new seal file...");
-        const { getStorage, ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
-        const storageInstance = getStorage();
-        const storageRef = ref(storageInstance, `barangay-seals/${new Date().toISOString()}-${newSealFile.name}`);
-        const uploadResult = await uploadBytes(storageRef, newSealFile);
-        uploadedLogoUrl = await getDownloadURL(uploadResult.ref);
-        console.log("Upload complete, URL:", uploadedLogoUrl);
-      }
-
-      console.log("Saving settings to Firestore...");
       const configRef = doc(firestore, 'barangayConfig', 'main');
       await setDoc(configRef, {
         id: 'main',
         name: barangayName,
         address,
-        sealLogoUrl: uploadedLogoUrl,
+        sealLogoUrl,
       }, { merge: true });
 
       toast({ title: "Settings Saved", description: "Barangay details have been updated." });
-      setNewSealFile(null); // Clear the file after saving
     } catch (error: any) {
       console.error("Error saving settings: ", error);
       toast({ title: "Save Failed", description: error.message || "Could not save settings.", variant: "destructive" });
     } finally {
       setIsSaving(false);
-      console.log("Finished save attempt.");
     }
   };
 
   return (
     <Tabs defaultValue="barangay" className="w-full">
-      <TabsList>
+      <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
         <TabsTrigger value="barangay">Barangay Details</TabsTrigger>
         <TabsTrigger value="account">Account</TabsTrigger>
         <TabsTrigger value="users">User Management</TabsTrigger>
@@ -135,10 +110,10 @@ function AdminSettings() {
                   <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="logo">Barangay Seal/Logo</Label>
+                  <Label htmlFor="logo">Barangay Seal/Logo URL</Label>
                   <div className="flex items-center gap-4">
                     {sealLogoUrl && <Image src={sealLogoUrl} alt="Barangay Seal" width={64} height={64} className="rounded-full bg-muted object-cover" unoptimized />}
-                    <Input id="logo" type="file" onChange={handleFileChange} accept="image/*" />
+                    <Input id="logo" type="url" value={sealLogoUrl || ""} onChange={(e) => setSealLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" />
                   </div>
                 </div>
               </CardContent>
@@ -169,7 +144,7 @@ function AdminSettings() {
               <CardContent className="space-y-6">
                   <div className="space-y-2">
                       <h4 className="font-semibold">Database</h4>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                           <Button variant="outline">Backup Database</Button>
                           <Button variant="destructive">Restore Database</Button>
                       </div>

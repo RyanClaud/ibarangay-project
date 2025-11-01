@@ -95,7 +95,7 @@ export function RequestForm() {
             <CardTitle>New Document Request</CardTitle>
             <CardDescription>Select a document to request.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-6 md:grid-cols-1">
+          <CardContent className="grid gap-6">
             <FormField
               control={form.control}
               name="documentType"
@@ -122,7 +122,7 @@ export function RequestForm() {
               )}
             />
             {resident && (
-              <div className="md:col-span-2 bg-muted p-4 rounded-lg space-y-2 border">
+              <div className="bg-muted p-4 rounded-lg space-y-2 border">
                 <h4 className="font-semibold">Your Information (Auto-filled)</h4>
                 <p className="text-sm"><span className="font-medium">Name:</span> {resident.firstName} {resident.lastName}</p>
                 <p className="text-sm"><span className="font-medium">Address:</span> {resident.address}</p>

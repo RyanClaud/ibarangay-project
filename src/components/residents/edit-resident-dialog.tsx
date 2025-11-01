@@ -102,7 +102,7 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                 control={form.control}
                 name="firstName"
@@ -159,7 +159,7 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
                 </FormItem>
               )}
             />
-             <div className="grid grid-cols-2 gap-4">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                 control={form.control}
                 name="birthdate"
@@ -208,7 +208,7 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
                 )}
                 />
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
                 <DialogClose asChild>
                     <Button type="button" variant="ghost">Cancel</Button>
                 </DialogClose>

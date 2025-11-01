@@ -72,7 +72,7 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add New User</DialogTitle>
           <DialogDescription>
@@ -129,7 +129,7 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
                 </FormItem>
               )}
             />
-            <DialogFooter>
+            <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
                 <DialogClose asChild>
                     <Button type="button" variant="ghost">Cancel</Button>
                 </DialogClose>

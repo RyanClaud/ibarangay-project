@@ -47,7 +47,7 @@ export function UserManagementClientPage() {
     await addUser(newUser);
   };
 
-  const handleUpdateUser = (updatedUser: User | Partial<User>) => {
+  const handleUpdateUser = (updatedUser: Partial<User> & {id: string}) => {
     updateUser(updatedUser);
     setUserToEdit(null);
   };
@@ -64,14 +64,14 @@ export function UserManagementClientPage() {
         <CardDescription>Add, edit, or remove staff and officials.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
           <Input
             placeholder="Filter by name or email..."
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
-            className="max-w-sm"
+            className="max-w-full sm:max-w-sm"
           />
-          <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
             <PlusCircle />
             Add User
           </Button>
@@ -81,8 +81,8 @@ export function UserManagementClientPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead className="hidden sm:table-cell">Email</TableHead>
+                <TableHead className="hidden md:table-cell">Role</TableHead>
                 <TableHead>
                   <span className="sr-only">Actions</span>
                 </TableHead>
@@ -103,8 +103,8 @@ export function UserManagementClientPage() {
                         <div className="font-medium">{user.name}</div>
                       </div>
                     </TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">{user.email}</TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <Badge variant="secondary">{user.role}</Badge>
                     </TableCell>
                     <TableCell>

@@ -65,19 +65,19 @@ export function ResidentClientPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
         <Input
           placeholder="Filter by name or User ID..."
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
-          className="max-w-sm"
+          className="max-w-full sm:max-w-sm"
         />
-        <div className="flex gap-2">
-          <Button variant="outline">
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="w-full sm:w-auto">
             <FileDown />
             Export
           </Button>
-          <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
             <PlusCircle />
             Add Resident
           </Button>
@@ -87,11 +87,10 @@ export function ResidentClientPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>User ID</TableHead>
+              <TableHead className="hidden md:table-cell">User ID</TableHead>
               <TableHead>Name</TableHead>
-              <TableHead>Address</TableHead>
-              <TableHead>Birthdate</TableHead>
-              <TableHead>Household No.</TableHead>
+              <TableHead className="hidden sm:table-cell">Address</TableHead>
+              <TableHead className="hidden md:table-cell">Birthdate</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -101,7 +100,7 @@ export function ResidentClientPage() {
             {filteredData.length ? (
               filteredData.map((resident) => (
                 <TableRow key={resident.id}>
-                  <TableCell className="font-medium">{resident.userId}</TableCell>
+                  <TableCell className="font-medium hidden md:table-cell">{resident.userId}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
@@ -114,9 +113,8 @@ export function ResidentClientPage() {
                       <div className="font-medium">{resident.firstName} {resident.lastName}</div>
                     </div>
                   </TableCell>
-                  <TableCell>{resident.address}</TableCell>
-                  <TableCell>{resident.birthdate}</TableCell>
-                  <TableCell>{resident.householdNumber}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{resident.address}</TableCell>
+                  <TableCell className="hidden md:table-cell">{resident.birthdate}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

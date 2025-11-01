@@ -79,12 +79,12 @@ export function DocumentRequestClientPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
         <Input
           placeholder="Filter by name or tracking no..."
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
-          className="max-w-sm"
+          className="max-w-full sm:max-w-sm"
         />
       </div>
 
@@ -101,10 +101,9 @@ export function DocumentRequestClientPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tracking No.</TableHead>
-              <TableHead>Resident Name</TableHead>
-              <TableHead>Document</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead className="hidden sm:table-cell">Tracking No.</TableHead>
+              <TableHead>Resident</TableHead>
+              <TableHead className="hidden md:table-cell">Document</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
@@ -115,10 +114,12 @@ export function DocumentRequestClientPage() {
             {filteredData.length ? (
               filteredData.map((request) => (
                 <TableRow key={request.id}>
-                  <TableCell className="font-medium">{request.trackingNumber}</TableCell>
-                  <TableCell>{request.residentName}</TableCell>
-                  <TableCell>{request.documentType}</TableCell>
-                  <TableCell>{request.requestDate}</TableCell>
+                  <TableCell className="font-medium hidden sm:table-cell">{request.trackingNumber}</TableCell>
+                  <TableCell>
+                    <div className="font-medium">{request.residentName}</div>
+                    <div className="text-sm text-muted-foreground md:hidden">{request.documentType}</div>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">{request.documentType}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={cn("font-semibold", statusColors[request.status])}>
                       {request.status}

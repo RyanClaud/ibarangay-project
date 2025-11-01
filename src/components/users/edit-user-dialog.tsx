@@ -39,7 +39,7 @@ type UserFormData = z.infer<typeof userSchema>;
 interface EditUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpdateUser: (user: User | Partial<User>) => void;
+  onUpdateUser: (user: Partial<User> & { id: string }) => void;
   user: User;
 }
 
@@ -74,7 +74,7 @@ export function EditUserDialog({ isOpen, onClose, onUpdateUser, user }: EditUser
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
           <DialogDescription>
@@ -134,7 +134,7 @@ export function EditUserDialog({ isOpen, onClose, onUpdateUser, user }: EditUser
                 </FormItem>
               )}
             />
-            <DialogFooter>
+            <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
               <DialogClose asChild>
                 <Button type="button" variant="ghost">Cancel</Button>
               </DialogClose>
