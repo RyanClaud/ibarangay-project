@@ -36,11 +36,9 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const defaultUser = initialUsers.find(u => u.role === 'Admin');
-
 function AppProviderContent({ children }: { children: ReactNode }) {
   const { firestore, isUserLoading: isAuthLoading } = useFirebase();
-  const [currentUser, setCurrentUser] = useState<User | null>(defaultUser || null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Firestore collections - these will only run if currentUser is not null
   const residentsQuery = useMemoFirebase(() => (firestore && currentUser) ? collection(firestore, 'residents') : null, [firestore, currentUser]);
