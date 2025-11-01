@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -21,13 +21,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isProcessingLogin, setIsProcessingLogin] = useState(false);
 
-  React.useEffect(() => {
-    // If the useAuth hook determines we have a user, redirect to the dashboard.
+  useEffect(() => {
+    // This effect now ONLY handles redirecting an already-logged-in user away from the login page.
     if (authenticatedUser && !isAuthLoading) {
-      toast({
-        title: 'Login Successful',
-        description: `Welcome back, ${authenticatedUser.name}!`,
-      });
       router.push('/dashboard');
     }
   }, [authenticatedUser, isAuthLoading, router]);
@@ -38,9 +34,7 @@ export default function LoginPage() {
 
     try {
       // The login function initiates the Firebase sign-in process.
-      // It does not return a promise for success/failure.
-      // Success is handled by the onAuthStateChanged listener and the useEffect hook above.
-      // Failure is handled by onAuthStateChanged or by catching auth errors, but we can add a toast here for immediate feedback.
+      // The redirect on success is handled by the useEffect above.
       login(credential, password);
     } catch (error) {
       // This will likely not catch async auth errors, but is good practice.
@@ -52,15 +46,33 @@ export default function LoginPage() {
       });
       setIsProcessingLogin(false);
     }
-    // We can't immediately know if login failed here with a simple .catch
-    // A more advanced implementation would use a global state for auth errors.
-    // For now, we will set a timeout to reset the button if auth state doesn't change.
+    
+    // Set a timeout to reset the button if auth state change is slow or fails.
+    // This prevents the button from getting stuck in a loading state.
     setTimeout(() => {
-        setIsProcessingLogin(false);
-    }, 5000); // Reset after 5 seconds if auth is slow or fails
+      setIsProcessingLogin(false);
+      // We can also add a toast here for a failed login after a timeout
+      // This is a simple way to give feedback without complex state management
+      if (!authenticatedUser) {
+        toast({
+            title: 'Login Failed',
+            description: 'Please check your credentials and try again.',
+            variant: 'destructive',
+        });
+      }
+    }, 5000);
   };
   
   const isLoading = isAuthLoading || isProcessingLogin;
+  
+  // Don't render the form if we know the user is authenticated and we're just waiting for the redirect.
+  if (authenticatedUser && !isAuthLoading) {
+    return (
+        <div className="flex h-screen w-screen items-center justify-center bg-background">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
