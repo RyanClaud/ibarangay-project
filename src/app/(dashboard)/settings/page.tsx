@@ -1,12 +1,93 @@
+'use client';
+
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserManagementClientPage } from "@/components/users/user-management-client-page";
+import { useFirebase } from "@/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { toast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+import Image from "next/image";
 
 export default function SettingsPage() {
+  const { firestore } = useFirebase();
+  const [barangayName, setBarangayName] = useState("Barangay Mina De Oro");
+  const [address, setAddress] = useState("Bongabong, Oriental Mindoro, Philippines");
+  const [sealLogoUrl, setSealLogoUrl] = useState<string | null>(null);
+  const [newSealFile, setNewSealFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      if (!firestore) return;
+      setIsLoading(true);
+      const configRef = doc(firestore, 'barangayConfig', 'main');
+      const configSnap = await getDoc(configRef);
+      if (configSnap.exists()) {
+        const configData = configSnap.data();
+        setBarangayName(configData.name);
+        setAddress(configData.address);
+        setSealLogoUrl(configData.sealLogoUrl);
+      }
+      setIsLoading(false);
+    };
+    fetchConfig();
+  }, [firestore]);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      setNewSealFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setSealLogoUrl(previewUrl);
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    if (!firestore) return;
+    setIsSaving(true);
+    let uploadedLogoUrl = sealLogoUrl;
+
+    if (newSealFile) {
+      try {
+        const storage = getStorage();
+        const storageRef = ref(storage, `barangay-seals/${newSealFile.name}`);
+        const uploadResult = await uploadBytes(storageRef, newSealFile);
+        uploadedLogoUrl = await getDownloadURL(uploadResult.ref);
+      } catch (error) {
+        console.error("Error uploading file: ", error);
+        toast({ title: "Upload Failed", description: "Could not upload the new logo.", variant: "destructive" });
+        setIsSaving(false);
+        return;
+      }
+    }
+
+    try {
+      const configRef = doc(firestore, 'barangayConfig', 'main');
+      await setDoc(configRef, {
+        id: 'main',
+        name: barangayName,
+        address,
+        sealLogoUrl: uploadedLogoUrl,
+      }, { merge: true });
+
+      toast({ title: "Settings Saved", description: "Barangay details have been updated." });
+    } catch (error) {
+      console.error("Error saving settings: ", error);
+      toast({ title: "Save Failed", description: "Could not save settings to the database.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+      setNewSealFile(null); // Clear the file after saving
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -28,20 +109,37 @@ export default function SettingsPage() {
               <CardTitle>Barangay Information</CardTitle>
               <CardDescription>Update the official details of your barangay.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="barangayName">Barangay Name</Label>
-                <Input id="barangayName" defaultValue="Barangay Mina De Oro" />
+            {isLoading ? (
+              <div className="flex justify-center items-center p-8">
+                <Loader2 className="animate-spin" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input id="address" defaultValue="Bongabong, Oriental Mindoro, Philippines" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="logo">Barangay Seal/Logo</Label>
-                <Input id="logo" type="file" />
-              </div>
-            </CardContent>
+            ) : (
+              <>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="barangayName">Barangay Name</Label>
+                    <Input id="barangayName" value={barangayName} onChange={(e) => setBarangayName(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Input id="address" value={address} onChange={(e) => setAddress(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="logo">Barangay Seal/Logo</Label>
+                    <div className="flex items-center gap-4">
+                      {sealLogoUrl && <Image src={sealLogoUrl} alt="Barangay Seal" width={64} height={64} className="rounded-full bg-muted" />}
+                      <Input id="logo" type="file" onChange={handleFileChange} accept="image/*" />
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button onClick={handleSaveChanges} disabled={isSaving}>
+                    {isSaving && <Loader2 className="mr-2 animate-spin" />}
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </CardFooter>
+              </>
+            )}
           </Card>
         </TabsContent>
         <TabsContent value="users">
@@ -52,7 +150,7 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle>System Maintenance</CardTitle>
                     <CardDescription>Manage system logs, backups, and restores.</CardDescription>
-                </CardHeader>
+                </Header>
                 <CardContent className="space-y-6">
                     <div className="space-y-2">
                         <h4 className="font-semibold">Database</h4>
