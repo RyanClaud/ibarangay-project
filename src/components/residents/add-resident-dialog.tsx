@@ -62,16 +62,24 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
     },
   });
 
-  const onSubmit = (data: ResidentFormData) => {
-    onAddResident({
-        ...data,
-    });
-    toast({
-        title: 'Resident Added',
-        description: `${data.firstName} ${data.lastName} has been added. Their default password is 'password'.`,
-    });
-    form.reset();
-    onClose();
+  const onSubmit = async (data: ResidentFormData) => {
+    try {
+      await onAddResident({
+          ...data,
+      });
+      toast({
+          title: 'Resident Added',
+          description: `${data.firstName} ${data.lastName} has been added. Their default password is 'password'.`,
+      });
+      form.reset();
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: "Failed to Add Resident",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

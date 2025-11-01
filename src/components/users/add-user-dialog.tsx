@@ -37,7 +37,7 @@ type UserFormData = z.infer<typeof userSchema>;
 interface AddUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => void;
+  onAddUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => Promise<void>;
 }
 
 const ROLES: Role[] = ["Admin", "Barangay Captain", "Secretary", "Treasurer"];
@@ -52,9 +52,9 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
     },
   });
 
-  const onSubmit = (data: UserFormData) => {
+  const onSubmit = async (data: UserFormData) => {
     try {
-        onAddUser(data);
+        await onAddUser(data);
         toast({
             title: 'User Added',
             description: `${data.name} has been added as a system user. Their default password is 'password'.`,

@@ -42,12 +42,9 @@ export function UserManagementClientPage() {
       user.email.toLowerCase().includes(filter.toLowerCase()))
   ).sort((a, b) => a.name.localeCompare(b.name));
 
-  const handleAddUser = (newUser: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => {
-    try {
-      addUser(newUser);
-    } catch(e: any) {
-      console.error(e);
-    }
+  const handleAddUser = async (newUser: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => {
+    // This now returns a promise that can throw an error
+    await addUser(newUser);
   };
 
   const handleUpdateUser = (updatedUser: User) => {
