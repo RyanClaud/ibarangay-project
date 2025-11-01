@@ -41,37 +41,41 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 // Helper function to seed initial users into Firebase Auth and Firestore
 const seedInitialUsers = async (firestore: any, auth: any) => {
   console.log('Checking and seeding initial users if necessary...');
+  const batch = writeBatch(firestore);
 
   for (const user of initialUsers) {
     try {
-      // Check if user exists in Auth by fetching sign-in methods for their email
-      const signInMethods = await fetchSignInMethodsForEmail(auth, user.email);
-      
-      if (signInMethods.length === 0) {
-        // User does not exist in Auth, so create them
-        console.log(`Creating auth user for ${user.email}...`);
-        const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
-        const authUser = userCredential.user;
+      // Attempt to create the user in Firebase Auth.
+      const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
+      const authUser = userCredential.user;
+      console.log(`Created auth user for ${user.email}`);
 
-        // Now create their document in Firestore using the UID from Auth
-        const userDocRef = doc(firestore, 'users', authUser.uid);
-        const userData: User = {
-          ...user,
-          id: authUser.uid, // This is critical
-        };
-        await setDocumentNonBlocking(userDocRef, userData, { merge: true });
-        console.log(`User ${user.email} created in Auth and Firestore.`);
-      } else {
-        // User already exists in Auth, we can skip creation.
-        // Optional: you could add logic here to ensure their Firestore doc is up-to-date.
+      // If successful, add their Firestore document to the batch.
+      const userDocRef = doc(firestore, 'users', authUser.uid);
+      const userData: User = {
+        ...user,
+        id: authUser.uid, // This is critical
+      };
+      batch.set(userDocRef, userData);
+      
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        // This is expected if the script runs more than once.
         console.log(`User ${user.email} already exists in Auth. Skipping creation.`);
+      } else {
+        // Catch and log any other errors during seeding.
+        console.error(`Error seeding user ${user.email}:`, error);
       }
-    } catch (error) {
-      // Catch and log any other errors during seeding
-      console.error(`Error seeding user ${user.email}:`, error);
     }
   }
-  console.log('Finished user seeding check.');
+
+  try {
+    // Commit the batch of new user documents.
+    await batch.commit();
+    console.log('Finished user seeding check.');
+  } catch (error) {
+    console.error('Error committing user-seeding batch:', error);
+  }
 };
 
 
@@ -239,9 +243,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         setDocumentNonBlocking(userRef, newUser, { merge: true });
       })
       .catch(error => {
-        // This will catch auth errors (like email-already-in-use)
-        // Firestore permission errors for the setDoc are handled in setDocumentNonBlocking
-        console.error("Error creating auth user:", error);
+        if (error.code !== 'auth/email-already-in-use') {
+          console.error("Error creating auth user:", error);
+        }
       });
   };
 
