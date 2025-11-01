@@ -52,27 +52,47 @@ export default function CertificatePage() {
   const handleDownload = () => {
     const certificateElement = document.getElementById('certificate');
     if (certificateElement) {
-        // Temporarily remove no-print elements for canvas capture
         const noPrintElements = certificateElement.querySelectorAll('.no-print-capture');
         noPrintElements.forEach(el => el.classList.add('hidden'));
 
         html2canvas(certificateElement, {
-            scale: 2, // Higher scale for better quality
-            useCORS: true, 
+            scale: 3, // Increased scale for better PDF quality
+            useCORS: true,
         }).then((canvas) => {
-            // Restore hidden elements after capture
             noPrintElements.forEach(el => el.classList.remove('hidden'));
 
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({
                 orientation: 'portrait',
-                unit: 'px',
-                format: [canvas.width, canvas.height]
+                unit: 'in',
+                format: 'letter' // Standard 8.5x11 inches
             });
-            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const canvasAspectRatio = canvasWidth / canvasHeight;
+            const pdfAspectRatio = pdfWidth / pdfHeight;
+
+            let renderWidth, renderHeight;
+
+            // Fit the image to the page, maintaining aspect ratio
+            if (canvasAspectRatio > pdfAspectRatio) {
+                renderWidth = pdfWidth;
+                renderHeight = pdfWidth / canvasAspectRatio;
+            } else {
+                renderHeight = pdfHeight;
+                renderWidth = pdfHeight * canvasAspectRatio;
+            }
+
+            // Center the image on the page
+            const xOffset = (pdfWidth - renderWidth) / 2;
+            const yOffset = (pdfHeight - renderHeight) / 2;
+
+            pdf.addImage(imgData, 'PNG', xOffset, yOffset, renderWidth, renderHeight);
             pdf.save(`${request.documentType.replace(/ /g, '_')}-${resident.lastName}.pdf`);
             
-            // After download, update the status to "Released"
             if (request.status !== 'Released') {
                 updateDocumentRequestStatus(request.id, 'Released');
                 toast({
@@ -83,6 +103,7 @@ export default function CertificatePage() {
         });
     }
   };
+
 
   const getAge = (birthdate: string) => {
     const today = new Date();
