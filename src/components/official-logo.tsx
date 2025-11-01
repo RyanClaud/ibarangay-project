@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 
 export function OfficialLogo({ className }: { className?: string }) {
-  const logoUrl = "https://storage.googleapis.com/studioprompt-res/11p2_3408013_1730870932.99/out-0.png";
+  const logoUrl = "https://upload.wikimedia.org/wikipedia/commons/e/e0/Bongabong%2C_Oriental_Mindoro_Official_Seal.png";
   
   return (
     <div className={cn("relative", className)}>
