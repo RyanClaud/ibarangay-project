@@ -22,6 +22,8 @@ import {
 import type { Resident } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { AddResidentDialog } from "./add-resident-dialog";
+import { EditResidentDialog } from "./edit-resident-dialog";
+import { DeleteResidentDialog } from "./delete-resident-dialog";
 
 interface ResidentClientPageProps {
   data: Resident[];
@@ -31,6 +33,8 @@ export function ResidentClientPage({ data: initialData }: ResidentClientPageProp
   const [data, setData] = React.useState(initialData);
   const [filter, setFilter] = React.useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
+  const [residentToEdit, setResidentToEdit] = React.useState<Resident | null>(null);
+  const [residentToDelete, setResidentToDelete] = React.useState<Resident | null>(null);
 
   const filteredData = data.filter(
     (resident) =>
@@ -55,6 +59,16 @@ export function ResidentClientPage({ data: initialData }: ResidentClientPageProp
       avatarUrl: `https://picsum.photos/seed/${newIdNumber}/100/100`,
     };
     setData(prevData => [residentToAdd, ...prevData]);
+  };
+
+  const handleUpdateResident = (updatedResident: Resident) => {
+    setData(prevData => prevData.map(r => r.id === updatedResident.id ? updatedResident : r));
+    setResidentToEdit(null);
+  };
+
+  const handleDeleteResident = (residentId: string) => {
+    setData(prevData => prevData.filter(r => r.id !== residentId));
+    setResidentToDelete(null);
   };
 
   return (
@@ -121,9 +135,9 @@ export function ResidentClientPage({ data: initialData }: ResidentClientPageProp
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setResidentToEdit(resident)}>Edit</DropdownMenuItem>
                         <DropdownMenuItem>View Profile</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive" onClick={() => setResidentToDelete(resident)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -144,6 +158,22 @@ export function ResidentClientPage({ data: initialData }: ResidentClientPageProp
         onClose={() => setIsAddDialogOpen(false)}
         onAddResident={handleAddResident}
       />
+      {residentToEdit && (
+        <EditResidentDialog
+          isOpen={!!residentToEdit}
+          onClose={() => setResidentToEdit(null)}
+          onUpdateResident={handleUpdateResident}
+          resident={residentToEdit}
+        />
+      )}
+      {residentToDelete && (
+        <DeleteResidentDialog
+          isOpen={!!residentToDelete}
+          onClose={() => setResidentToDelete(null)}
+          onConfirm={() => handleDeleteResident(residentToDelete.id)}
+          residentName={`${residentToDelete.firstName} ${residentToDelete.lastName}`}
+        />
+      )}
     </div>
   );
 }
