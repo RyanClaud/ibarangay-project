@@ -70,7 +70,7 @@ service cloud.firestore {
       allow list: if isStaff();
       allow create: if true; 
       allow update: if isAdmin() || isOwner(userId);
-      allow delete: if isStaff();
+      allow delete: if isAdmin() || isOwner(userId);
     }
 
     /**
@@ -83,7 +83,7 @@ service cloud.firestore {
       allow list: if isStaff();
       allow create: if true;
       allow update: if isStaff() || isOwner(residentId);
-      allow delete: if isAdmin() || isOwner(residentId);
+      allow delete: if isStaff();
     }
 
     /**
