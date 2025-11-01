@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '@/contexts/app-context';
 import { useEffect, useState } from 'react';
-import { OfficialLogo } from '../official-logo';
+import { Logo } from '../logo';
 
 const navItems = {
   Admin: [
@@ -79,7 +79,7 @@ export function SidebarNav() {
     <>
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-3 p-1">
-          <OfficialLogo className="size-12" />
+          <Logo className="size-12" />
           <div className="flex flex-col">
             <h2 className="font-headline text-lg font-semibold text-sidebar-foreground">iBarangay</h2>
             <p className="text-xs text-sidebar-foreground/80">Barangay Mina de Oro</p>
