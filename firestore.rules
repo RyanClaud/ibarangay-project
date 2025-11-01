@@ -116,9 +116,13 @@ service cloud.firestore {
      * @principle Enforces document ownership for writes, and allows residents to read/write their own document requests.
      */
     match /documentRequests/{documentRequestId} {
-      allow get, list: if isSignedIn() && (
+      allow get: if isSignedIn() && (
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'Resident' 
         || resource.data.residentId == request.auth.uid
+      );
+      allow list: if isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'Resident'
+        || request.query.where.residentId == request.auth.uid
       );
 
       allow create: if isSignedIn() && request.resource.data.residentId == request.auth.uid;
