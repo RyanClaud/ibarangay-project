@@ -32,24 +32,34 @@ export default function LoginPage() {
     }
   }, [authenticatedUser, isAuthLoading, router]);
 
-
   const handleLogin = (event: React.FormEvent) => {
     event.preventDefault();
     setIsProcessingLogin(true);
-    
-    login(credential, password).catch((error: any) => {
-      console.error(error); // Log the actual error for debugging
+
+    try {
+      // The login function initiates the Firebase sign-in process.
+      // It does not return a promise for success/failure.
+      // Success is handled by the onAuthStateChanged listener and the useEffect hook above.
+      // Failure is handled by onAuthStateChanged or by catching auth errors, but we can add a toast here for immediate feedback.
+      login(credential, password);
+    } catch (error) {
+      // This will likely not catch async auth errors, but is good practice.
+      console.error(error);
       toast({
         title: 'Login Failed',
-        description: 'Invalid credentials. Please check your User ID/Email and password.',
+        description: 'An unexpected error occurred. Please try again.',
         variant: 'destructive',
       });
-    }).finally(() => {
-      // Always reset processing state, redirect is handled by useEffect
       setIsProcessingLogin(false);
-    });
+    }
+    // We can't immediately know if login failed here with a simple .catch
+    // A more advanced implementation would use a global state for auth errors.
+    // For now, we will set a timeout to reset the button if auth state doesn't change.
+    setTimeout(() => {
+        setIsProcessingLogin(false);
+    }, 5000); // Reset after 5 seconds if auth is slow or fails
   };
-
+  
   const isLoading = isAuthLoading || isProcessingLogin;
 
   return (
