@@ -148,10 +148,8 @@ export default function CertificatePage() {
 
                 <footer className="mt-24 flex justify-end">
                     <div className="text-center w-64">
-                         <div className="mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 100" className="h-20 w-full">
-                                <path d="M10,50 C22.5,20,41.5,25.5,50,40 C60,55,70,50,80,45 C90,40,110,30,125,50 C140,70,155,60,165,50 C175,40,190,20,200,50 C210,80,225,60,235,50 C245,40,260,30,270,50 C280,70,295,60,305,50 C315,40,330,20,340,50 C350,80,365,60,375,50 C385,40,400,30,410,50 C420,70,435,60,445,50 C455,40,470,20,480,50" stroke="#000080" fill="transparent" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
+                         <div className="h-20 mb-4">
+                            {/* Signature was here */}
                         </div>
                         <p className="font-bold uppercase border-t-2 border-black pt-2">AMADO MAGTIBAY</p>
                         <p>Punong Barangay</p>
