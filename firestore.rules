@@ -1,10 +1,10 @@
 /**
  * @file Firebase Security Rules for iBarangay System
  * @description This ruleset enforces a user-ownership model for residents and their document requests,
- *               while also providing role-based access for barangay officials and administrators using custom claims.
+ *               while also providing role-based access for barangay officials and administrators using a role field in the user's document.
  *
  * Data Structure:
- * - /users/{userId}: Stores user accounts with a 'role' custom claim.
+ * - /users/{userId}: Stores user accounts with a 'role' field.
  * - /residents/{residentId}: Stores resident profiles, with userId for authentication.
  * - /documentRequests/{documentRequestId}: Stores document requests, linked to residents via residentId.
  * - /payments/{paymentId}: Stores payment information for document requests.
@@ -12,7 +12,7 @@
  * - /barangayConfig/{configId}: Stores configuration settings for the barangay.
  *
  * Key Security Decisions:
- * - Custom claims (`request.auth.token.role`) are the source of truth for user roles.
+ * - The user's role is stored in their document at /users/{userId}.
  * - Authenticated users can read the list of users.
  * - Residents can only read/write their own resident profile.
  * - Staff (non-residents) can read all resident profiles.
@@ -38,26 +38,30 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
-    /**
-     * @description Checks if the authenticated user has the "Admin" role via custom claims.
-     */
-    function isAdmin() {
-      return isSignedIn() && request.auth.token.role == "Admin";
+    
+    function getUserRole(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.role;
     }
 
     /**
-     * @description Checks if the authenticated user is a staff member (not a "Resident") via custom claims.
+     * @description Checks if the authenticated user has the "Admin" role.
+     */
+    function isAdmin() {
+      return isSignedIn() && getUserRole(request.auth.uid) == "Admin";
+    }
+
+    /**
+     * @description Checks if the authenticated user is a staff member (not a "Resident").
      */
     function isStaff() {
-      return isSignedIn() && request.auth.token.role != "Resident";
+      return isSignedIn() && getUserRole(request.auth.uid) != "Resident";
     }
     
     /**
      * @description Rules for the /users/{userId} collection.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId) || isStaff();
+      allow get: if isSignedIn();
       allow list: if isSignedIn();
       allow create: if isOwner(userId);
       allow update: if isAdmin() || isOwner(userId);
@@ -68,12 +72,14 @@ service cloud.firestore {
      * @description Rules for the /residents/{residentId} collection.
      */
     match /residents/{residentId} {
-      allow get: if isOwner(residentId) || isStaff();
+      // isOwner check is for resident user trying to get their own profile
+      // residentId is their auth uid
+      allow get: if isSignedIn() && (isStaff() || isOwner(residentId));
       allow list: if isStaff();
       // Only the user themselves can create their own resident profile
-      allow create: if isOwner(residentId) && request.resource.data.userId == residentId;
-      allow update: if isOwner(residentId) || isStaff();
-      allow delete: if isOwner(residentId) || isAdmin();
+      allow create: if isOwner(residentId);
+      allow update: if isSignedIn() && (isStaff() || isOwner(residentId));
+      allow delete: if isSignedIn() && (isAdmin() || isOwner(residentId));
     }
 
     /**
