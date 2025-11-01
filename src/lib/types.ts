@@ -35,4 +35,12 @@ export type DocumentRequest = {
   status: DocumentRequestStatus;
   trackingNumber: string;
   amount: number;
+  approvalDate?: string;
+  releaseDate?: string;
+  residentSnapshot?: {
+    firstName: string;
+    lastName: string;
+    address: string;
+    birthdate: string;
+  };
 };

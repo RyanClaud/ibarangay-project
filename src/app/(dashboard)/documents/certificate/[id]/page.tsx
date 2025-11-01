@@ -5,18 +5,19 @@ import { useAppContext } from "@/contexts/app-context";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import type { DocumentRequest, Resident } from "@/lib/types";
+import type { DocumentRequest } from "@/lib/types";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { Logo } from "@/components/logo";
+import { toast } from "@/hooks/use-toast";
 
 export default function CertificatePage() {
   const { id } = useParams();
-  const { documentRequests, residents, currentUser, isDataLoading } = useAppContext();
+  const { documentRequests, currentUser, isDataLoading, updateDocumentRequestStatus } = useAppContext();
   const router = useRouter();
 
   // Show loader if context data is not yet available
-  if (isDataLoading || !currentUser || !documentRequests || !residents) {
+  if (isDataLoading || !currentUser || !documentRequests) {
     return (
         <div className="flex h-full w-full items-center justify-center p-8">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -25,9 +26,13 @@ export default function CertificatePage() {
   }
 
   const request: DocumentRequest | undefined = documentRequests.find(r => r.id === id);
-  const resident: Resident | undefined = request ? residents.find(r => r.id === request.residentId) : undefined;
   
+  // Use the resident snapshot from the request if it exists, otherwise deny access.
+  const resident = request?.residentSnapshot;
+
   if (!request || !resident) {
+    // If the snapshot doesn't exist, it means the request wasn't approved properly.
+    // Or, if the request itself isn't found.
     return notFound();
   }
 
@@ -53,6 +58,15 @@ export default function CertificatePage() {
             });
             pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
             pdf.save(`${request.documentType.replace(/ /g, '_')}-${resident.lastName}.pdf`);
+            
+            // After download, update the status to "Released"
+            if (request.status !== 'Released') {
+                updateDocumentRequestStatus(request.id, 'Released');
+                toast({
+                    title: "Document Released",
+                    description: "The request status has been updated to 'Released'."
+                });
+            }
         });
     }
   };
@@ -102,7 +116,7 @@ export default function CertificatePage() {
                     <p className="indent-8">
                         This is to certify that <span className="font-bold uppercase">{resident.firstName} {resident.lastName}</span>,
                         <span className="font-bold">{getAge(resident.birthdate)}</span> years old, is a bonafide resident of 
-                        <span className="font-bold"> {resident.address}, Bongabong, Oriental Mindoro.</span>
+                        <span className="font-bold"> {resident.address}.</span>
                     </p>
                     
                     {request.documentType === 'Barangay Clearance' && (

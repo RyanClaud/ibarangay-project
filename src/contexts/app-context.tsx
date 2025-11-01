@@ -24,7 +24,7 @@ interface AppContextType {
   logout: () => void;
   residents: Resident[] | null;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => Promise<void>;
-  updateResident: (residentId: string, dataToUpdate: Partial<Resident>, avatarFile?: File | null) => Promise<void>;
+  updateResident: (residentId: string, dataToUpdate: Partial<Resident>) => Promise<void>;
   deleteResident: (residentId: string) => void;
   documentRequests: DocumentRequest[] | null;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
@@ -32,7 +32,7 @@ interface AppContextType {
   deleteDocumentRequest: (id: string) => void;
   users: User[] | null;
   addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => Promise<void>;
-  updateUser: (dataToUpdate: Partial<User> & { id: string }, avatarFile?: File | null) => Promise<void>;
+  updateUser: (dataToUpdate: Partial<User> & { id: string }) => Promise<void>;
   deleteUser: (userId: string) => void;
   isDataLoading: boolean;
   login: (credential: string, password: string) => Promise<void>;
@@ -207,9 +207,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
            dataForUser.name = `${newFirstName} ${newLastName}`;
        }
     }
-    if (dataToUpdate.avatarUrl) {
-      dataForUser.avatarUrl = dataToUpdate.avatarUrl;
-    }
   
     if (Object.keys(dataForUser).length > 0) {
       const userRef = doc(firestore, 'users', residentId);
@@ -260,11 +257,41 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     });
   };
 
-  const updateDocumentRequestStatus = (id: string, status: DocumentRequestStatus) => {
+  const updateDocumentRequestStatus = async (id: string, status: DocumentRequestStatus) => {
     if (!firestore) return;
+
     const requestRef = doc(firestore, 'documentRequests', id);
-    updateDocumentNonBlocking(requestRef, { status });
-  };
+    const updateData: { [key: string]: any } = { status };
+
+    // If status is 'Approved', snapshot the resident's current data
+    if (status === 'Approved') {
+        const requestSnap = await getDoc(requestRef);
+        if (requestSnap.exists()) {
+            const requestData = requestSnap.data() as DocumentRequest;
+            const residentRef = doc(firestore, 'residents', requestData.residentId);
+            const residentSnap = await getDoc(residentRef);
+            if (residentSnap.exists()) {
+                const residentData = residentSnap.data() as Resident;
+                // Add a snapshot of resident data to the request document
+                updateData.residentSnapshot = {
+                    firstName: residentData.firstName,
+                    lastName: residentData.lastName,
+                    address: residentData.address,
+                    birthdate: residentData.birthdate,
+                };
+            }
+        }
+    }
+    if (status === 'Released') {
+      updateData.releaseDate = new Date().toISOString();
+    }
+    if (status === 'Approved') {
+      updateData.approvalDate = new Date().toISOString();
+    }
+
+
+    await updateDoc(requestRef, updateData);
+};
   
   const deleteDocumentRequest = (id: string) => {
     if (!firestore) return;
@@ -310,9 +337,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         const nameParts = updateData.name.split(' ');
         dataForResident.firstName = nameParts[0];
         dataForResident.lastName = nameParts.slice(1).join(' ');
-      }
-      if (updateData.avatarUrl) {
-        dataForResident.avatarUrl = updateData.avatarUrl;
       }
       if (Object.keys(dataForResident).length > 0) {
         await updateDoc(residentRef, dataForResident);
