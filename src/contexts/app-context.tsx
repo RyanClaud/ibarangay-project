@@ -13,6 +13,8 @@ import {
   deleteDocumentNonBlocking,
   initiateEmailSignIn,
   initiateSignOut,
+  FirestorePermissionError,
+  errorEmitter
 } from '@/firebase';
 import { collection, doc, where, query, getDocs, writeBatch } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -97,9 +99,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   // 1. Fetch users only after Firebase Auth has confirmed a user is logged in.
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore || !firebaseUser) return null; // Don't query if no user
+    if (isAuthLoading || !firebaseUser) return null; // Don't query if no user or auth is loading
     return collection(firestore, 'users');
-  }, [firestore, firebaseUser]);
+  }, [firestore, firebaseUser, isAuthLoading]);
   const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
 
   // 2. Determine the app's current user based on the Auth user and the fetched users list.
@@ -126,7 +128,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
   // 4. Consolidate loading state.
-  const isDataLoading = isAuthLoading || (!!firebaseUser && (isUsersLoading || (!!currentUser && (isResidentsLoading || isRequestsLoading))));
+  const isDataLoading = isAuthLoading || (!!firebaseUser && (isUsersLoading || !currentUser || isResidentsLoading || isRequestsLoading));
 
   const login = async (credential: string, password: string): Promise<User | undefined> => {
     if (!auth || !firestore) {
@@ -134,10 +136,27 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
 
     let userToLogin: User | undefined;
-    const allUsers = await getDocs(collection(firestore, 'users'));
-    const userList = allUsers.docs.map(doc => doc.data() as User);
     
-    userToLogin = findUserByCredential(credential, userList);
+    // First, attempt to find user by resident ID (for residents)
+    if (credential.toLowerCase().startsWith('r-')) {
+        const q = query(collection(firestore, "users"), where("userId", "==", credential));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            userToLogin = querySnapshot.docs[0].data() as User;
+        }
+    } else { // Otherwise, find by email (for staff)
+        const q = query(collection(firestore, "users"), where("email", "==", credential));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            userToLogin = querySnapshot.docs[0].data() as User;
+        }
+    }
+
+    if (!userToLogin) {
+      const allUsers = (await getDocs(collection(firestore, 'users'))).docs.map(doc => doc.data() as User);
+      userToLogin = findUserByCredential(credential, allUsers);
+    }
+
 
     if (!userToLogin) {
       throw new Error("No user found with that ID or email.");
@@ -145,8 +164,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     
     initiateEmailSignIn(auth, userToLogin.email, password);
 
-    // The actual state change is handled by onAuthStateChanged, but we return
-    // the found user for immediate feedback on the login page.
     return userToLogin;
   };
 
@@ -232,11 +249,13 @@ function AppProviderContent({ children }: { children: ReactNode }) {
           avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
         };
         const userRef = doc(firestore, 'users', authUser.uid);
+        // Use setDoc and chain a .catch for error handling
         setDocumentNonBlocking(userRef, newUser, { merge: true });
       })
       .catch(error => {
-        console.error("Error creating user:", error);
-        // Here you would likely show a toast to the user
+        // This will catch auth errors (like email-already-in-use)
+        // Firestore permission errors for the setDoc are handled in setDocumentNonBlocking
+        console.error("Error creating auth user:", error);
       });
   };
 
