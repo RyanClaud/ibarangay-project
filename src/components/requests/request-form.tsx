@@ -23,6 +23,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { DocumentType, Resident } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
+import { useAppContext } from "@/contexts/app-context";
+import { useEffect } from "react";
 
 const formSchema = z.object({
   userId: z.string().min(1, "User ID is required."),
@@ -34,6 +36,8 @@ interface RequestFormProps {
 }
 
 export function RequestForm({ resident }: RequestFormProps) {
+  const { addDocumentRequest } = useAppContext();
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -42,13 +46,35 @@ export function RequestForm({ resident }: RequestFormProps) {
     },
   });
 
+  useEffect(() => {
+    if (resident) {
+      form.setValue('userId', resident.userId);
+    }
+  }, [resident, form]);
+
+
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+    if (!resident) {
+        toast({
+            title: "Error",
+            description: "Resident information not found.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    addDocumentRequest({
+        residentId: resident.id,
+        residentName: `${resident.firstName} ${resident.lastName}`,
+        documentType: values.documentType,
+        amount: values.documentType === 'Barangay Clearance' ? 50.00 : 75.00, // Example amount
+    });
+    
     toast({
       title: "Request Submitted!",
       description: `Your request for a ${values.documentType} has been received.`,
     });
-    form.reset();
+    form.reset({ userId: resident.userId, documentType: "Barangay Clearance" });
   }
 
   return (
@@ -57,7 +83,7 @@ export function RequestForm({ resident }: RequestFormProps) {
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardHeader>
             <CardTitle>New Document Request</CardTitle>
-            <CardDescription>Enter your User ID and select a document.</CardDescription>
+            <CardDescription>Select a document to request.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6 md:grid-cols-2">
             <FormField
@@ -67,7 +93,7 @@ export function RequestForm({ resident }: RequestFormProps) {
                 <FormItem>
                   <FormLabel>Your User ID</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., R-1001" {...field} />
+                    <Input placeholder="e.g., R-1001" {...field} disabled />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,15 +8,27 @@ import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/logo';
+import { useAppContext } from '@/contexts/app-context';
+import { toast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAppContext();
+  const [credential, setCredential] = useState('');
 
   const handleLogin = (event: React.FormEvent) => {
     event.preventDefault();
-    // In a real app, you'd perform authentication here.
-    // For now, we'll just redirect to the dashboard.
-    router.push('/dashboard');
+    const user = login(credential);
+    
+    if (user) {
+      router.push('/dashboard');
+    } else {
+      toast({
+        title: 'Login Failed',
+        description: 'Invalid credentials. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -31,8 +44,14 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">User ID / Email</Label>
-              <Input id="email" type="email" placeholder="Enter your User ID or email" required />
+              <Label htmlFor="credential">User ID / Email</Label>
+              <Input 
+                id="credential" 
+                placeholder="e.g., R-1001 or admin@ibarangay.com" 
+                required 
+                value={credential}
+                onChange={(e) => setCredential(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">

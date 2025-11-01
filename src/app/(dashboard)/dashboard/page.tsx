@@ -2,21 +2,53 @@
 
 import { RequestForm } from "@/components/requests/request-form";
 import { RequestHistory } from "@/components/requests/request-history";
-import { documentRequests, residents, getLoggedInUser } from "@/lib/data";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { RequestsChart } from "@/components/dashboard/requests-chart";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
-import { CircleDollarSign, FileText, Users, FileClock, CheckCircle } from "lucide-react";
+import { CircleDollarSign, FileText, Users, CheckCircle, Loader2 } from "lucide-react";
 import type { User, DocumentRequest } from "@/lib/types";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
+import { useAppContext } from "@/contexts/app-context";
+import { useRouter } from "next/navigation";
+import { getLoggedInUser } from "@/lib/data";
 
 export default function DashboardPage() {
-  // In a real app, user would be from an auth context.
-  const user: User = getLoggedInUser("Resident"); 
+  const { currentUser, residents, documentRequests } = useAppContext();
+  const router = useRouter();
+
+  // In a real app with proper auth, this redirect would be more robust.
+  useEffect(() => {
+    if (!currentUser) {
+      // To prevent flicker and handle page reloads, we'll rely on the default user for now.
+      // A full solution would involve storing auth state in localStorage.
+      // router.push('/login');
+    }
+  }, [currentUser, router]);
+
+  // Fallback to a default user to prevent crashes on reload or if context is not ready.
+  const user = currentUser || getLoggedInUser("Admin"); 
+
+  const residentInfo = useMemo(() => {
+    if (user?.role === 'Resident' && user.residentId) {
+      return residents.find(res => res.id === user.residentId);
+    }
+    return undefined;
+  }, [user, residents]);
   
-  const residentId = 'RES001'; // Simulating a logged-in resident
-  const residentInfo = useMemo(() => residents.find(res => res.id === residentId), [residentId]);
-  const residentRequests = useMemo(() => documentRequests.filter(req => req.residentId === residentId), [residentId]);
+  const residentRequests = useMemo(() => {
+    if (user?.role === 'Resident' && user.residentId) {
+      return documentRequests.filter(req => req.residentId === user.residentId);
+    }
+    return [];
+  }, [user, documentRequests]);
+
+  if (!currentUser) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (user.role === "Resident") {
     const totalRequests = residentRequests.length;

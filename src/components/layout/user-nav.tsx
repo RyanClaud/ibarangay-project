@@ -1,3 +1,5 @@
+'use client';
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,19 +14,29 @@ import {
 import type { User } from "@/lib/types";
 import { LogOut, Settings, User as UserIcon } from "lucide-react";
 import Link from "next/link";
+import { useAppContext } from "@/contexts/app-context";
+import { useRouter } from "next/navigation";
 
 interface UserNavProps {
   user: User;
 }
 
 export function UserNav({ user }: UserNavProps) {
+  const { logout } = useAppContext();
+  const router = useRouter();
+
   const getInitials = (name: string) => {
     const names = name.split(' ');
     if (names.length > 1) {
       return names[0][0] + names[names.length - 1][0];
     }
-    return names[0].substring(0, 2);
+    return name.substring(0, 2);
   };
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  }
   
   return (
     <DropdownMenu>
@@ -59,10 +71,8 @@ export function UserNav({ user }: UserNavProps) {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/login">
-            <LogOut /> Logout
-          </Link>
+        <DropdownMenuItem onClick={handleLogout}>
+          <LogOut /> Logout
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

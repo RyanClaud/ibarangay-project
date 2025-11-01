@@ -6,6 +6,7 @@ export type User = {
   email: string;
   avatarUrl: string;
   role: Role;
+  residentId?: string; // Link user to a resident profile
 };
 
 export type Resident = {

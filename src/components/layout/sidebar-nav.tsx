@@ -9,7 +9,7 @@ import {
   SidebarMenuButton,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -23,14 +23,9 @@ import {
   FileSignature,
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
-import { getLoggedInUser } from '@/lib/data';
 import type { Role } from '@/lib/types';
-import { cn } from '@/lib/utils';
-
-// We can pass a role here to simulate different users.
-// In a real app, this would come from an auth context.
-const role: Role = 'Admin'; 
-const user = getLoggedInUser(role);
+import { useAppContext } from '@/contexts/app-context';
+import { getLoggedInUser } from '@/lib/data';
 
 const navItems = {
   Admin: [
@@ -65,7 +60,18 @@ const navItems = {
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { currentUser, logout } = useAppContext();
+  
+  // Default to a mock user if not logged in, to prevent UI crashes.
+  // In a real app, unauthenticated users would be redirected.
+  const user = currentUser || getLoggedInUser('Admin'); 
   const userNavItems = navItems[user.role] || navItems.Resident;
+
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
 
   return (
     <>
@@ -107,14 +113,14 @@ export function SidebarNav() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip={{
-              children: 'Logout',
-              className: 'bg-primary text-primary-foreground',
+            <SidebarMenuButton 
+              onClick={handleLogout}
+              tooltip={{
+                children: 'Logout',
+                className: 'bg-primary text-primary-foreground',
             }}>
-              <Link href="/login">
                 <LogOut />
                 <span>Logout</span>
-              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
