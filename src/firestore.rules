@@ -70,7 +70,7 @@ service cloud.firestore {
       allow list: if isStaff();
       allow create: if true; 
       allow update: if isAdmin() || isOwner(userId);
-      allow delete: if isAdmin() || isOwner(userId);
+      allow delete: if isOwner(userId) || (isAdmin() && request.auth.uid != userId);
     }
 
     /**
