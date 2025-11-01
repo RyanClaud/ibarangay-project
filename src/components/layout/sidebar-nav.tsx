@@ -85,19 +85,20 @@ export function SidebarNav() {
         <SidebarMenu>
           {userNavItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              <Link href={item.href} legacyBehavior passHref>
-                <SidebarMenuButton
-                  isActive={pathname === item.href}
-                  className="font-body"
-                  tooltip={{
-                    children: item.label,
-                    className: 'bg-primary text-primary-foreground',
-                  }}
-                >
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === item.href}
+                className="font-body"
+                tooltip={{
+                  children: item.label,
+                  className: 'bg-primary text-primary-foreground',
+                }}
+              >
+                <Link href={item.href}>
                   <item.icon />
                   <span>{item.label}</span>
-                </SidebarMenuButton>
-              </Link>
+                </Link>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
@@ -108,15 +109,15 @@ export function SidebarNav() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <Link href="/login" legacyBehavior passHref>
-              <SidebarMenuButton tooltip={{
-                children: 'Logout',
-                className: 'bg-primary text-primary-foreground',
-              }}>
+            <SidebarMenuButton asChild tooltip={{
+              children: 'Logout',
+              className: 'bg-primary text-primary-foreground',
+            }}>
+              <Link href="/login">
                 <LogOut />
                 <span>Logout</span>
-              </SidebarMenuButton>
-            </Link>
+              </Link>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
