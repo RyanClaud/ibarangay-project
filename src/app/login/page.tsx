@@ -10,28 +10,38 @@ import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/contexts/app-context';
 import { toast } from '@/hooks/use-toast';
 import { Logo } from '@/components/logo';
+import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAppContext();
   const [credential, setCredential] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (event: React.FormEvent) => {
+  const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
-    const user = login(credential);
+    setIsLoading(true);
     
-    if (user) {
-      toast({
-        title: 'Login Successful',
-        description: `Welcome back, ${user.name}!`,
-      });
-      router.push('/dashboard');
-    } else {
+    try {
+      const user = await login(credential, password);
+      if (user) {
+        toast({
+          title: 'Login Successful',
+          description: `Welcome back, ${user.name}!`,
+        });
+        router.push('/dashboard');
+      } else {
+        throw new Error("Login failed");
+      }
+    } catch (error: any) {
       toast({
         title: 'Login Failed',
-        description: 'Invalid credentials. Please try again.',
+        description: error.message || 'Invalid credentials. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -55,6 +65,7 @@ export default function LoginPage() {
                 required 
                 value={credential}
                 onChange={(e) => setCredential(e.target.value)}
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -64,12 +75,21 @@ export default function LoginPage() {
                   Forgot password?
                 </Link>
               </div>
-              <Input id="password" type="password" placeholder="Enter your password" required />
+              <Input 
+                id="password" 
+                type="password" 
+                placeholder="Enter your password" 
+                required 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+              />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full">
-              Login
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isLoading ? 'Logging in...' : 'Login'}
             </Button>
             <p className="text-sm text-center text-muted-foreground">
               Don't have an account?{' '}

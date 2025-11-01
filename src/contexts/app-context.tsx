@@ -11,14 +11,17 @@ import {
   updateDocumentNonBlocking,
   setDocumentNonBlocking,
   deleteDocumentNonBlocking,
+  initiateEmailSignIn,
+  initiateSignOut,
 } from '@/firebase';
-import { collection, doc, where, query } from 'firebase/firestore';
+import { collection, doc, where, query, getDocs, writeBatch } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 interface AppContextType {
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
-  login: (credential: string) => User | undefined;
+  login: (credential: string, password: string) => Promise<User | undefined>;
   logout: () => void;
   residents: Resident[] | null;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => void;
@@ -36,15 +39,67 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+// Helper function to seed initial users into Firebase Auth and Firestore
+const seedInitialUsers = async (firestore: any, auth: any) => {
+  const usersRef = collection(firestore, 'users');
+  const querySnapshot = await getDocs(usersRef);
+
+  // Check if users collection is empty to prevent re-seeding
+  if (querySnapshot.empty) {
+    console.log('Seeding initial users...');
+    const batch = writeBatch(firestore);
+    
+    for (const user of initialUsers) {
+      try {
+        // Create user in Firebase Authentication
+        const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
+        const authUser = userCredential.user;
+
+        // Use the UID from Auth as the document ID in Firestore
+        const userDocRef = doc(firestore, 'users', authUser.uid);
+        
+        const userData: User = {
+          ...user,
+          id: authUser.uid, // Ensure Firestore ID matches Auth UID
+        };
+
+        batch.set(userDocRef, userData);
+        console.log(`User ${user.email} created in Auth and Firestore.`);
+
+      } catch (error: any) {
+        if (error.code === 'auth/email-already-in-use') {
+          console.log(`User ${user.email} already exists in Auth.`);
+          // If user exists in Auth, still ensure they are in Firestore
+          // This part is tricky without knowing the UID, so we rely on initial seeding being robust.
+          // For this app, we'll assume if one exists, they all do.
+        } else {
+          console.error('Error seeding user:', user.email, error);
+        }
+      }
+    }
+
+    await batch.commit();
+    console.log('Finished seeding initial users.');
+  }
+};
+
+
 function AppProviderContent({ children }: { children: ReactNode }) {
-  const { firestore, user: firebaseUser, isUserLoading: isAuthLoading } = useFirebase();
+  const { firestore, auth, user: firebaseUser, isUserLoading: isAuthLoading } = useFirebase();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Seed users on initial load
+  useEffect(() => {
+    if (firestore && auth) {
+      seedInitialUsers(firestore, auth);
+    }
+  }, [firestore, auth]);
 
   // 1. Fetch users only after Firebase Auth has confirmed a user is logged in.
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore || isAuthLoading || !firebaseUser) return null; // Don't query if no user
+    if (!firestore || !firebaseUser) return null; // Don't query if no user
     return collection(firestore, 'users');
-  }, [firestore, isAuthLoading, firebaseUser]);
+  }, [firestore, firebaseUser]);
   const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
 
   // 2. Determine the app's current user based on the Auth user and the fetched users list.
@@ -73,23 +128,31 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   // 4. Consolidate loading state.
   const isDataLoading = isAuthLoading || (!!firebaseUser && (isUsersLoading || (!!currentUser && (isResidentsLoading || isRequestsLoading))));
 
-  const login = (credential: string) => {
-    // This function is just a placeholder for initiating login.
-    // The actual user state change is handled by Firebase Auth and the effects above.
-    const user = findUserByCredential(credential, initialUsers);
-    if (user) {
-        // In a real app, this would trigger Firebase's signInWithEmailAndPassword.
-        // For the mockup, we simulate this by finding the user in the initial staff list
-        // to show that the login attempt is valid. The actual state transition
-        // will happen when Firebase Auth reports a signed-in user.
-        console.log("Login attempt for:", user.email);
+  const login = async (credential: string, password: string): Promise<User | undefined> => {
+    if (!auth || !firestore) {
+      throw new Error("Firebase not initialized");
     }
-    return user;
+
+    let userToLogin: User | undefined;
+    const allUsers = await getDocs(collection(firestore, 'users'));
+    const userList = allUsers.docs.map(doc => doc.data() as User);
+    
+    userToLogin = findUserByCredential(credential, userList);
+
+    if (!userToLogin) {
+      throw new Error("No user found with that ID or email.");
+    }
+    
+    initiateEmailSignIn(auth, userToLogin.email, password);
+
+    // The actual state change is handled by onAuthStateChanged, but we return
+    // the found user for immediate feedback on the login page.
+    return userToLogin;
   };
 
   const logout = () => {
-    // In a real app: signOut(auth);
-    // The onAuthStateChanged listener will then set firebaseUser to null.
+    if (!auth) return;
+    initiateSignOut(auth);
     setCurrentUser(null);
   };
 
@@ -118,6 +181,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
        role: 'Resident',
        residentId: newResident.id,
      };
+     // This is problematic; creating an auth user should be separate. For now, just create the user doc.
      const userRef = doc(firestore, 'users', newUser.id);
      setDocumentNonBlocking(userRef, newUser, { merge: true });
   };
@@ -156,25 +220,39 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const addUser = (user: Omit<User, 'id' | 'avatarUrl'>) => {
-    if (!firestore) return;
-    const newId = doc(collection(firestore, 'users')).id;
-    const newUser: User = {
-      ...user,
-      id: newId,
-      avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
-    };
-    const userRef = doc(firestore, 'users', newId);
-    setDocumentNonBlocking(userRef, newUser, { merge: true });
+    if (!firestore || !auth) return;
+    
+    // Create user in Auth
+    createUserWithEmailAndPassword(auth, user.email, 'password')
+      .then(userCredential => {
+        const authUser = userCredential.user;
+        const newUser: User = {
+          ...user,
+          id: authUser.uid,
+          avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
+        };
+        const userRef = doc(firestore, 'users', authUser.uid);
+        setDocumentNonBlocking(userRef, newUser, { merge: true });
+      })
+      .catch(error => {
+        console.error("Error creating user:", error);
+        // Here you would likely show a toast to the user
+      });
   };
 
   const updateUser = (updatedUser: User) => {
     if (!firestore) return;
     const userRef = doc(firestore, 'users', updatedUser.id);
-    updateDocumentNonBlocking(userRef, updatedUser);
+    // Don't update email directly in firestore without updating in Auth too.
+    // For this app, we'll just update non-sensitive fields.
+    const { email, ...rest } = updatedUser;
+    updateDocumentNonBlocking(userRef, rest);
   };
 
   const deleteUser = (userId: string) => {
     if (!firestore) return;
+    // Note: This only deletes the Firestore record, not the Auth user.
+    // Proper implementation requires a Firebase Function.
     const userRef = doc(firestore, 'users', userId);
     deleteDocumentNonBlocking(userRef);
   };

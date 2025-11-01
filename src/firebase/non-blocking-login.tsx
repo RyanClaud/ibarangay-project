@@ -4,6 +4,7 @@ import {
   signInAnonymously,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signOut,
   // Assume getAuth and app are initialized elsewhere
 } from 'firebase/auth';
 
@@ -24,6 +25,16 @@ export function initiateEmailSignUp(authInstance: Auth, email: string, password:
 /** Initiate email/password sign-in (non-blocking). */
 export function initiateEmailSignIn(authInstance: Auth, email: string, password: string): void {
   // CRITICAL: Call signInWithEmailAndPassword directly. Do NOT use 'await signInWithEmailAndPassword(...)'.
-  signInWithEmailAndPassword(authInstance, email, password);
+  signInWithEmailAndPassword(authInstance, email, password)
+    .catch((error) => {
+      // Although non-blocking for success, we should handle login errors.
+      console.error("Sign in error", error);
+      // You could emit a global error event here for a toast notification.
+    });
   // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
+}
+
+/** Initiate sign-out (non-blocking). */
+export function initiateSignOut(authInstance: Auth): void {
+  signOut(authInstance);
 }

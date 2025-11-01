@@ -29,7 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 const userSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
-  role: z.enum(["Admin", "Barangay Captain", "Secretary", "Treasurer"]),
+  role: z.enum(["Admin", "Barangay Captain", "Secretary", "Treasurer", "Resident"]),
 });
 
 type UserFormData = z.infer<typeof userSchema>;
@@ -37,7 +37,7 @@ type UserFormData = z.infer<typeof userSchema>;
 interface AddUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddUser: (user: Omit<User, 'id' | 'avatarUrl'>) => void;
+  onAddUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => void;
 }
 
 const ROLES: Role[] = ["Admin", "Barangay Captain", "Secretary", "Treasurer"];
@@ -56,7 +56,7 @@ export function AddUserDialog({ isOpen, onClose, onAddUser }: AddUserDialogProps
     onAddUser(data);
     toast({
         title: 'User Added',
-        description: `${data.name} has been added as a system user.`,
+        description: `${data.name} has been added as a system user. Their default password is 'password'.`,
     });
     form.reset();
     onClose();
