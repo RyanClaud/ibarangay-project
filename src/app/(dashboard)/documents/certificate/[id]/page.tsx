@@ -3,21 +3,44 @@
 import { useParams, notFound, useRouter } from "next/navigation";
 import { useAppContext } from "@/contexts/app-context";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer } from "lucide-react";
+import { ArrowLeft, Printer, Loader2 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Separator } from "@/components/ui/separator";
+import { useEffect, useState } from "react";
+import type { DocumentRequest, Resident } from "@/lib/types";
 
 export default function CertificatePage() {
   const { id } = useParams();
   const { documentRequests, residents } = useAppContext();
   const router = useRouter();
 
-  const request = documentRequests.find(r => r.id === id);
-  if (!request) {
-    return notFound();
+  const [request, setRequest] = useState<DocumentRequest | null | undefined>(undefined);
+  const [resident, setResident] = useState<Resident | null | undefined>(undefined);
+
+  useEffect(() => {
+    const foundRequest = documentRequests.find(r => r.id === id);
+    setRequest(foundRequest);
+    if (foundRequest) {
+      const foundResident = residents.find(r => r.id === foundRequest.residentId);
+      setResident(foundResident);
+    } else {
+        // Handle case where request is not found after initial load
+        if(documentRequests.length > 0) {
+            setRequest(null);
+        }
+    }
+  }, [id, documentRequests, residents]);
+
+
+  if (request === undefined || resident === undefined) {
+    return (
+        <div className="flex h-full w-full items-center justify-center p-8">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+    );
   }
-  const resident = residents.find(r => r.id === request.residentId);
-  if (!resident) {
+  
+  if (!request || !resident) {
     return notFound();
   }
 
