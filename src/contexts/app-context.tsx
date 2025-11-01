@@ -12,7 +12,7 @@ import {
   initiateSignOut,
   useDoc,
 } from '@/firebase';
-import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs, limit, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
@@ -24,14 +24,14 @@ interface AppContextType {
   logout: () => void;
   residents: Resident[] | null;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => Promise<void>;
-  updateResident: (resident: Resident, newAvatarFile?: File | null) => Promise<void>;
+  updateResident: (resident: Resident) => Promise<void>;
   deleteResident: (residentId: string) => void;
   documentRequests: DocumentRequest[] | null;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
   users: User[] | null;
   addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => Promise<void>;
-  updateUser: (user: User, newAvatarFile?: File | null) => Promise<void>;
+  updateUser: (user: User) => Promise<void>;
   deleteUser: (userId: string) => void;
   isDataLoading: boolean;
   login: (credential: string, password: string) => Promise<void>;
@@ -183,26 +183,17 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateResident = async (updatedResident: Resident, newAvatarFile?: File | null) => {
-    if (!firestore || !storage) return;
-
-    let updatedData = { ...updatedResident };
-
-    if (newAvatarFile) {
-        const storageRef = ref(storage, `profile-pictures/${updatedResident.id}/${newAvatarFile.name}`);
-        const uploadResult = await uploadBytes(storageRef, newAvatarFile);
-        const avatarUrl = await getDownloadURL(uploadResult.ref);
-        updatedData.avatarUrl = avatarUrl;
-    }
+  const updateResident = async (updatedResident: Resident) => {
+    if (!firestore) return;
     
-    const residentRef = doc(firestore, 'residents', updatedData.id);
-    updateDocumentNonBlocking(residentRef, updatedData);
+    const residentRef = doc(firestore, 'residents', updatedResident.id);
+    await updateDoc(residentRef, { ...updatedResident });
   
     // Also update the associated user document
-    const userRef = doc(firestore, 'users', updatedData.id);
-    updateDocumentNonBlocking(userRef, { 
-      name: `${updatedData.firstName} ${updatedData.lastName}`,
-      avatarUrl: updatedData.avatarUrl,
+    const userRef = doc(firestore, 'users', updatedResident.id);
+    await updateDoc(userRef, { 
+      name: `${updatedResident.firstName} ${updatedResident.lastName}`,
+      avatarUrl: updatedResident.avatarUrl,
     });
   };
 
@@ -277,23 +268,11 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateUser = async (updatedUser: User, newAvatarFile?: File | null) => {
-    if (!firestore || !storage) return;
-  
-    const dataToUpdate: Partial<User> = {
-      name: updatedUser.name,
-      role: updatedUser.role,
-    };
-  
-    if (newAvatarFile) {
-      const storageRef = ref(storage, `profile-pictures/${updatedUser.id}/${newAvatarFile.name}`);
-      const uploadResult = await uploadBytes(storageRef, newAvatarFile);
-      const avatarUrl = await getDownloadURL(uploadResult.ref);
-      dataToUpdate.avatarUrl = avatarUrl;
-    }
+  const updateUser = async (updatedUser: User) => {
+    if (!firestore) return;
     
     const userRef = doc(firestore, 'users', updatedUser.id);
-    updateDocumentNonBlocking(userRef, dataToUpdate);
+    await updateDoc(userRef, { ...updatedUser });
   };
 
   const deleteUser = (userId: string) => {

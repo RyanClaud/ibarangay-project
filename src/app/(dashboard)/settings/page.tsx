@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState } from "react";
@@ -21,6 +22,7 @@ import { ResidentSettings } from "@/components/account/resident-settings";
 
 function ProfilePhotoCard() {
     const { currentUser, updateUser } = useAppContext();
+    const { storage } = useFirebase();
     const [isSaving, setIsSaving] = useState(false);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(currentUser?.avatarUrl || null);
@@ -40,10 +42,15 @@ function ProfilePhotoCard() {
     };
 
     const handleSave = async () => {
-        if (!currentUser) return;
+        if (!currentUser || !avatarFile || !storage) return;
         setIsSaving(true);
         try {
-            await updateUser(currentUser, avatarFile);
+            const storageRef = ref(storage, `profile-pictures/${currentUser.id}/${avatarFile.name}`);
+            const uploadResult = await uploadBytes(storageRef, avatarFile);
+            const avatarUrl = await getDownloadURL(uploadResult.ref);
+            
+            await updateUser({ ...currentUser, avatarUrl });
+
             toast({ title: "Profile Picture Updated", description: "Your new picture has been saved." });
             setAvatarFile(null);
         } catch (error: any) {

@@ -28,6 +28,9 @@ import { useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { Resident } from '@/lib/types';
 import Image from 'next/image';
+import { useFirebase } from '@/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
 
 const profileSchema = z.object({
   purok: z.string().min(1, 'Purok / Sitio is required'),
@@ -38,6 +41,7 @@ type ProfileFormData = z.infer<typeof profileSchema>;
 
 export function EditProfileForm() {
   const { currentUser, residents, updateResident } = useAppContext();
+  const { storage } = useFirebase();
   const [isSaving, setIsSaving] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -76,19 +80,28 @@ export function EditProfileForm() {
   };
 
   const onSubmit = async (data: ProfileFormData) => {
-    if (!resident) {
-        toast({ title: "Error", description: "Resident profile not found.", variant: "destructive" });
+    if (!resident || !storage) {
+        toast({ title: "Error", description: "Resident profile not found or storage not available.", variant: "destructive" });
         return;
     }
     setIsSaving(true);
     try {
+      let avatarUrl = resident.avatarUrl;
+
+      if (avatarFile) {
+        const storageRef = ref(storage, `profile-pictures/${resident.id}/${avatarFile.name}`);
+        const uploadResult = await uploadBytes(storageRef, avatarFile);
+        avatarUrl = await getDownloadURL(uploadResult.ref);
+      }
+      
       const updatedResident: Resident = {
         ...resident,
-        purok: data.purok,
-        householdNumber: data.householdNumber,
+        ...data,
+        avatarUrl,
         address: `${data.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
       };
-      await updateResident(updatedResident, avatarFile);
+
+      await updateResident(updatedResident);
       toast({
         title: 'Profile Updated',
         description: 'Your personal information has been saved.',
