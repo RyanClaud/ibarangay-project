@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "../ui/badge";
+import { format } from "date-fns";
 
 const searchSchema = z.object({
   referenceNumber: z.string().min(1, "Reference number is required."),
@@ -46,7 +47,6 @@ export function PaymentsClientPage() {
   const { documentRequests, updateDocumentRequestStatus } = useAppContext();
   const [isLoading, setIsLoading] = React.useState(false);
   const [foundRequest, setFoundRequest] = React.useState<DocumentRequest | null>(null);
-  const [transactionId, setTransactionId] = React.useState('');
 
   const searchForm = useForm<SearchFormData>({
     resolver: zodResolver(searchSchema),
@@ -58,7 +58,7 @@ export function PaymentsClientPage() {
     setFoundRequest(null);
     const request = (documentRequests || []).find(
       (req) =>
-        req.referenceNumber === data.referenceNumber && req.status === "Approved"
+        req.referenceNumber === data.referenceNumber && req.status === "Paid"
     );
 
     if (request) {
@@ -67,52 +67,40 @@ export function PaymentsClientPage() {
       toast({
         title: "Request Not Found",
         description:
-          "No approved, unpaid request found with that reference number.",
+          "No paid, unreleased request found with that reference number.",
         variant: "destructive",
       });
     }
     setIsLoading(false);
   };
 
-  const handleConfirmPayment = () => {
-    if (!foundRequest || !transactionId) {
-        toast({
-            title: "Missing Information",
-            description: "Please enter a transaction ID.",
-            variant: "destructive"
-        });
-        return;
-    }
+  const handleReleaseDocument = () => {
+    if (!foundRequest) return;
     
-    updateDocumentRequestStatus(foundRequest.id, 'Paid', {
-        method: "GCash", // Assuming GCash for now
-        transactionId: transactionId,
-        paymentDate: new Date().toISOString(),
-    });
+    updateDocumentRequestStatus(foundRequest.id, 'Released');
 
     toast({
-      title: "Payment Confirmed",
-      description: `Request for ${foundRequest.residentName} has been marked as paid.`,
+      title: "Document Released",
+      description: `Request for ${foundRequest.residentName} has been marked as released.`,
     });
 
     // Reset the state
     setFoundRequest(null);
-    setTransactionId('');
     searchForm.reset();
   };
   
   const recentPayments = (documentRequests || [])
     .filter(req => req.status === 'Paid' || req.status === 'Released')
     .sort((a,b) => new Date(b.paymentDetails?.paymentDate || 0).getTime() - new Date(a.paymentDetails?.paymentDate || 0).getTime())
-    .slice(0, 5);
+    .slice(0, 10);
 
   return (
     <div className="grid gap-8 md:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Confirm Online Payment</CardTitle>
+          <CardTitle>Verify Submitted Payments</CardTitle>
           <CardDescription>
-            Enter the resident's reference number to find their request and confirm payment.
+            Use the resident's reference number to find their request and verify the submitted payment details.
           </CardDescription>
         </CardHeader>
         <Form {...searchForm}>
@@ -123,7 +111,7 @@ export function PaymentsClientPage() {
                 name="referenceNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reference Number</FormLabel>
+                    <FormLabel>Search Reference Number</FormLabel>
                     <div className="flex gap-2">
                       <FormControl>
                         <Input
@@ -147,28 +135,22 @@ export function PaymentsClientPage() {
         {foundRequest && (
             <div className="fade-in">
                 <CardHeader>
-                    <CardTitle>Request Found</CardTitle>
-                    <CardDescription>Verify the details and enter the transaction ID from the payment provider (e.g., GCash).</CardDescription>
+                    <CardTitle>Payment Verification</CardTitle>
+                    <CardDescription>A resident has submitted the following payment details. Please verify them with your records.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     <div className="space-y-2 rounded-md border bg-muted p-4">
-                        <p><span className="font-semibold">Resident:</span> {foundRequest.residentName}</p>
-                        <p><span className="font-semibold">Document:</span> {foundRequest.documentType}</p>
-                        <p className="text-lg font-bold"><span className="font-semibold">Amount:</span> ₱{foundRequest.amount.toFixed(2)}</p>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="transactionId">Payment Transaction ID</Label>
-                        <Input 
-                            id="transactionId"
-                            placeholder="Enter transaction ID from GCash"
-                            value={transactionId}
-                            onChange={(e) => setTransactionId(e.target.value)}
-                        />
+                     <div className="space-y-3 rounded-md border bg-muted p-4 text-sm">
+                        <p><span className="font-semibold text-muted-foreground">Resident:</span> {foundRequest.residentName}</p>
+                        <p><span className="font-semibold text-muted-foreground">Document:</span> {foundRequest.documentType}</p>
+                        <p><span className="font-semibold text-muted-foreground">Amount:</span> <span className="font-bold text-base text-foreground">₱{foundRequest.amount.toFixed(2)}</span></p>
+                        <p className="border-t pt-3"><span className="font-semibold text-muted-foreground">Payment Method:</span> {foundRequest.paymentDetails?.method}</p>
+                        <p><span className="font-semibold text-muted-foreground">Transaction ID:</span> {foundRequest.paymentDetails?.transactionId}</p>
+                         <p><span className="font-semibold text-muted-foreground">Payment Date:</span> {foundRequest.paymentDetails ? format(new Date(foundRequest.paymentDetails.paymentDate), 'PPP p') : 'N/A'}</p>
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button onClick={handleConfirmPayment} disabled={!transactionId}>
-                        <CheckCircle className="mr-2"/> Confirm Payment
+                    <Button onClick={handleReleaseDocument}>
+                        <CheckCircle className="mr-2"/> Verify & Release Document
                     </Button>
                 </CardFooter>
             </div>
@@ -179,7 +161,7 @@ export function PaymentsClientPage() {
         <CardHeader>
           <CardTitle>Recent Transactions</CardTitle>
           <CardDescription>
-            A log of the most recently confirmed payments.
+            A log of the most recently paid and released documents.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -200,7 +182,10 @@ export function PaymentsClientPage() {
                       <div className="text-sm text-muted-foreground">{req.documentType}</div>
                     </TableCell>
                     <TableCell>₱{req.amount.toFixed(2)}</TableCell>
-                    <TableCell><Badge variant="secondary" className="bg-green-100 text-green-800">Paid</Badge></TableCell>
+                    <TableCell>
+                      {req.status === 'Paid' && <Badge variant="secondary" className="bg-blue-100 text-blue-800">Paid</Badge>}
+                      {req.status === 'Released' && <Badge variant="secondary" className="bg-green-100 text-green-800">Released</Badge>}
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
