@@ -75,6 +75,27 @@ export function SidebarNav() {
 
   const userNavItems = currentUser ? navItems[currentUser.role] : [];
 
+  if (!isClient) {
+    return (
+       <>
+        <SidebarHeader className="border-b border-sidebar-border">
+          <div className="flex items-center gap-3 p-1">
+            <Logo className="size-10 bg-sidebar-primary text-sidebar-primary-foreground" />
+            <div className="flex flex-col">
+              <h2 className="font-headline text-lg font-semibold text-sidebar-foreground">iBarangay</h2>
+              <p className="text-xs text-sidebar-foreground/80">Barangay Mina de Oro</p>
+            </div>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+           <div className="flex justify-center p-4">
+              <Loader2 className="animate-spin text-sidebar-foreground" />
+           </div>
+        </SidebarContent>
+      </>
+    );
+  }
+
   return (
     <>
       <SidebarHeader className="border-b border-sidebar-border">
@@ -89,7 +110,7 @@ export function SidebarNav() {
 
       <SidebarContent>
         <SidebarMenu>
-          {!isClient || !currentUser ? (
+          {!currentUser ? (
              <div className="flex justify-center p-4">
                <Loader2 className="animate-spin text-sidebar-foreground" />
              </div>
