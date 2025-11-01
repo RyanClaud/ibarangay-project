@@ -38,77 +38,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Helper function to seed initial users into Firebase Auth and Firestore
-const seedInitialUsers = async (firestore: any, auth: any) => {
-  if (sessionStorage.getItem('firebase_users_seeded_v3')) {
-    return;
-  }
-  console.log('Seeding initial staff users...');
-
-  for (const user of initialUsers) {
-    try {
-      // Check if user exists in auth
-      let authUser;
-      try {
-        const signInMethods = await fetchSignInMethodsForEmail(auth, user.email);
-        if (signInMethods.length > 0) {
-          // This is not perfectly accurate as it doesn't give us the UID, but it's a good guess
-          // A more robust solution might involve a Cloud Function lookup.
-          console.log(`Auth user ${user.email} already exists.`);
-           const usersQuery = query(collection(firestore, "users"), where("email", "==", user.email));
-           const querySnapshot = await getDocs(usersQuery);
-            if (!querySnapshot.empty) {
-                authUser = { uid: querySnapshot.docs[0].id };
-            } else {
-                 console.warn(`Auth user ${user.email} exists but has no Firestore document. This should not happen.`);
-                 continue; // Skip to next user
-            }
-
-        } else {
-            const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
-            authUser = userCredential.user;
-            console.log(`User ${user.email} created in Auth with UID: ${authUser.uid}.`);
-        }
-      } catch (authError: any) {
-         if (authError.code === 'auth/email-already-in-use') {
-            console.log(`Auth user ${user.email} already exists (caught on create).`);
-             const usersQuery = query(collection(firestore, "users"), where("email", "==", user.email));
-             const querySnapshot = await getDocs(usersQuery);
-             if (!querySnapshot.empty) {
-                authUser = { uid: querySnapshot.docs[0].id };
-            } else {
-                 console.warn(`Auth user ${user.email} exists but has no Firestore document. This should not happen.`);
-                 continue; // Skip to next user
-            }
-         } else {
-            throw authError;
-         }
-      }
-
-      // Now check/create the firestore document
-      if (authUser?.uid) {
-        const userDocRef = doc(firestore, 'users', authUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-
-        if (!userDocSnap.exists()) {
-          console.log(`Creating Firestore doc for ${user.email} with UID ${authUser.uid}.`);
-          const userData: User = {
-            ...user,
-            id: authUser.uid,
-          };
-          await setDoc(userDocRef, userData);
-        }
-      }
-
-    } catch (error: any) {
-      console.error(`Error seeding user ${user.email}:`, error);
-    }
-  }
-  
-  sessionStorage.setItem('firebase_users_seeded_v3', 'true');
-};
-
-
 function AppProviderContent({ children }: { children: ReactNode }) {
   const { firestore, auth } = useFirebase();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -125,27 +54,20 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const isDataLoading = isUsersLoading || isResidentsLoading || isRequestsLoading;
 
-  // Run seeding effect
-  useEffect(() => {
-    if (firestore && auth) {
-      seedInitialUsers(firestore, auth);
-    }
-  }, [firestore, auth]);
-
   const login = async (credential: string, password: string) => {
     if (!auth) throw new Error("Auth service not available.");
 
     let emailToLogin = credential;
-    // This heuristic is not secure but is required by the prompt's design.
-    // A real app would use a secure backend endpoint for this lookup.
-    if (!credential.includes('@') && firestore && users) {
+    
+    // Heuristic to find resident email. This is not secure for a production app.
+    // A real app should use a backend function to look up the email.
+    if (!credential.includes('@') && users) {
        const residentUser = users.find(u => u.role === 'Resident' && u.residentId && residents?.find(r => r.id === u.residentId)?.userId === credential);
        if(residentUser) {
         emailToLogin = residentUser.email;
        }
     }
     
-    // Use initiateEmailSignIn which is non-blocking and returns a promise for the UI to handle
     await signInWithEmailAndPassword(auth, emailToLogin, password);
   };
 
@@ -198,16 +120,15 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const deleteResident = async (residentId: string) => {
     if (!firestore || !auth) return;
-    console.warn("Warning: Deleting resident from Firestore only. This does not delete the Firebase Auth user, which should be done via a backend function.");
+    // In a real app, deleting the Auth user should be handled by a backend function for security.
+    console.warn("Warning: Deleting resident from Firestore only. This does not delete the Firebase Auth user.");
+    
     const residentRef = doc(firestore, 'residents', residentId);
     await deleteDocumentNonBlocking(residentRef);
 
-    const userQuery = query(collection(firestore, "users"), where("residentId", "==", residentId));
-    const userSnapshot = await getDocs(userQuery);
-    if (!userSnapshot.empty) {
-        const userDoc = userSnapshot.docs[0];
-        await deleteDocumentNonBlocking(userDoc.ref);
-    }
+    // Also delete the corresponding user document
+    const userRef = doc(firestore, 'users', residentId);
+    await deleteDocumentNonBlocking(userRef);
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
@@ -237,10 +158,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     createUserWithEmailAndPassword(auth, user.email, 'password')
       .then(userCredential => {
         const authUser = userCredential.user;
-        // In a real app, you would call a Cloud Function here to set custom claims
-        // For example: setCustomUserClaims(authUser.uid, { role: user.role });
-        console.log(`User created. In a real app, a custom claim for role '${user.role}' would be set here.`);
-
         const newUser: User = {
           ...user,
           id: authUser.uid,
@@ -251,7 +168,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       })
       .catch(error => {
         if (error.code === 'auth/email-already-in-use') {
-          console.warn(`User with email ${user.email} already exists in Firebase Auth.`);
+          console.warn(`Auth user with email ${user.email} already exists. To link, ensure Firestore doc with correct UID exists.`);
         } else {
           console.error("Error creating auth user:", error);
         }
@@ -262,8 +179,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!firestore) return;
     const userRef = doc(firestore, 'users', updatedUser.id);
     const { email, ...rest } = updatedUser;
-    // In a real app, you would call a Cloud Function here to update the custom claim
-    console.log(`User updated. In a real app, a custom claim for role '${updatedUser.role}' would be set here.`);
     updateDocumentNonBlocking(userRef, rest);
   };
 
