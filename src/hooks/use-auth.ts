@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAppContext } from '@/contexts/app-context';
 import { useUser, useFirebase } from '@/firebase/provider';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import type { User as AuthUser } from 'firebase/auth';
 import type { User } from '@/lib/types';
 
 
 /**
  * Ensures a user document exists in Firestore for a given authenticated user.
- * If the document doesn't exist, it returns null, signaling a potential deleted user.
+ * If the document doesn't exist, it returns null, signaling a potentially deleted user.
  * This function NO LONGER creates user documents on the fly during login.
  * @param firestore - The Firestore instance.
  * @param authUser - The user object from Firebase Authentication.

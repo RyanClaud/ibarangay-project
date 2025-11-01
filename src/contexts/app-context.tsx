@@ -152,7 +152,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
       const residentId = authUser.uid;
       // Generate a more user-friendly, unique-enough ID.
-      const userId = `R-${Math.floor(Date.now() / 1000).toString().slice(-6)}`;
+      const userId = `R-${authUser.uid.slice(0,6).toUpperCase()}`;
 
       const newResident: Resident = {
         ...newResidentData,
