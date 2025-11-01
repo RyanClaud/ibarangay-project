@@ -82,9 +82,13 @@ service cloud.firestore {
      * @description Rules for the /documentRequests/{documentRequestId} collection.
      */
     match /documentRequests/{documentRequestId} {
+      // Staff can list all requests. Residents can't (they query with a where clause).
       allow list: if isStaff();
+      // Staff can get any request. A resident can get their own.
       allow get: if isStaff() || (resource.data.residentId == request.auth.uid);
+      // A resident can only create document requests for themselves.
       allow create: if request.resource.data.residentId == request.auth.uid;
+      // Staff can manage any request. A resident can update/delete their own.
       allow write: if isStaff() || (resource.data.residentId == request.auth.uid);
     }
 
