@@ -128,7 +128,7 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
                 <FormItem>
                   <FormLabel>Email Address</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="juan.cruz@example.com" {...field} disabled />
+                    <Input type="email" placeholder="juan.cruz@example.com" {...field} />
                   </FormControl>
                    <FormMessage />
                 </FormItem>

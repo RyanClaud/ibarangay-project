@@ -193,7 +193,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     updateDocumentNonBlocking(residentRef, updatedResident);
 
     const userRef = doc(firestore, 'users', updatedResident.id);
-    updateDocumentNonBlocking(userRef, { name: `${updatedResident.firstName} ${updatedResident.lastName}` });
+    updateDocumentNonBlocking(userRef, { 
+      name: `${updatedResident.firstName} ${updatedResident.lastName}`,
+      email: updatedResident.email 
+    });
   };
 
   const deleteResident = async (residentId: string) => {
@@ -211,7 +214,14 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
-    if (!firestore || !documentRequests || !currentUser?.residentId) return;
+    if (!firestore || !documentRequests || !currentUser?.residentId) {
+       toast({
+          title: 'Error',
+          description: 'Could not identify the current resident. Please log in again.',
+          variant: 'destructive',
+       });
+       return;
+    }
 
     const newId = doc(collection(firestore, 'documentRequests')).id;
     const newIdNumber = (documentRequests?.length ?? 0) + 1;
@@ -225,6 +235,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     };
     const requestRef = doc(firestore, 'documentRequests', newId);
     setDocumentNonBlocking(requestRef, newRequest, { merge: true });
+     toast({
+      title: "Request Submitted!",
+      description: `Your request for a ${newRequest.documentType} has been received.`,
+    });
   };
 
   const updateDocumentRequestStatus = (id: string, status: DocumentRequestStatus) => {

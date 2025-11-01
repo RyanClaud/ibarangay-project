@@ -20,9 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { toast } from "@/hooks/use-toast";
 import { useAppContext } from "@/contexts/app-context";
 import { useMemo } from "react";
+import { toast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   documentType: z.enum(["Barangay Clearance", "Certificate of Residency", "Certificate of Indigency", "Business Permit", "Good Moral Character Certificate", "Solo Parent Certificate"]),
@@ -83,11 +83,6 @@ export function RequestForm() {
         residentName: currentUser.name,
         documentType: values.documentType,
         amount: amount,
-    });
-    
-    toast({
-      title: "Request Submitted!",
-      description: `Your request for a ${values.documentType} has been received.`,
     });
     form.reset({ documentType: "Barangay Clearance" });
   }
