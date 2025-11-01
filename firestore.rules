@@ -1,34 +1,24 @@
 /**
  * @file Firebase Security Rules for iBarangay System
  * @description This ruleset enforces a user-ownership model for residents and their document requests,
- *               while also providing role-based access for barangay officials and administrators.
+ *               while also providing role-based access for barangay officials and administrators using custom claims.
  *
  * Data Structure:
- * - /users/{userId}: Stores user accounts.
+ * - /users/{userId}: Stores user accounts with a 'role' custom claim.
  * - /residents/{residentId}: Stores resident profiles, with userId for authentication.
  * - /documentRequests/{documentRequestId}: Stores document requests, linked to residents via residentId.
  * - /payments/{paymentId}: Stores payment information for document requests.
  * - /officials/{officialId}: Stores information about barangay officials.
  * - /barangayConfig/{configId}: Stores configuration settings for the barangay.
- * - /roles_admin/{userId}: Manages admin roles based on document existence.
  *
  * Key Security Decisions:
+ * - Custom claims (`request.auth.token.role`) are the source of truth for user roles.
  * - Authenticated users can read the list of users.
  * - Residents can only read/write their own resident profile.
+ * - Staff (non-residents) can read all resident profiles.
  * - Residents can only create document requests for themselves.
- * - Listing all residents is disallowed for residents to protect privacy, but allowed for staff.
- * - Admins (users with a document in /roles_admin/{userId}) have elevated privileges.
- * - BarangayConfig is publicly readable but only writable by admins.
- *
- * Denormalization for Authorization:
- * - The `DocumentRequest` entity includes the `residentId` to allow for efficient
- *   querying and authorization without needing to perform additional `get()` operations.
- *   This allows rules to quickly check if the requesting user is the owner of the request.
- *
- * Structural Segregation:
- * - Data is segregated into top-level collections based on access needs.
- *   For example, resident profiles are stored separately from document requests,
- *   and admin roles are managed in a dedicated collection.
+ * - Staff (non-residents) can read all document requests.
+ * - Admins (role == "Admin") have the highest level of privileges.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -50,22 +40,14 @@ service cloud.firestore {
     }
 
     /**
-     * @description Checks if the authenticated user is an existing owner of the resource (resource exists and user is the owner).
-     * @param {string} userId - The user ID to compare against the authenticated user's ID.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Checks if the authenticated user is an admin by checking custom claims.
+     * @description Checks if the authenticated user has the "Admin" role via custom claims.
      */
     function isAdmin() {
       return isSignedIn() && request.auth.token.role == "Admin";
     }
 
     /**
-     * @description Checks if the authenticated user is a staff member (not a Resident) by checking custom claims.
+     * @description Checks if the authenticated user is a staff member (not a "Resident") via custom claims.
      */
     function isStaff() {
       return isSignedIn() && request.auth.token.role != "Resident";
@@ -73,15 +55,9 @@ service cloud.firestore {
     
     /**
      * @description Rules for the /users/{userId} collection.
-     * @path /users/{userId}
-     * @allow (get) A user can read their own user profile.
-     * @allow (list) Authenticated users can list all users.
-     * @allow (create) Logged-in user can create their own user profile.
-     * @allow (update) Admins can update users or a user can update their own profile.
-     * @allow (delete) Admins can delete users.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isStaff();
       allow list: if isSignedIn();
       allow create: if isOwner(userId);
       allow update: if isAdmin() || isOwner(userId);
@@ -90,79 +66,39 @@ service cloud.firestore {
 
     /**
      * @description Rules for the /residents/{residentId} collection.
-     * @path /residents/{residentId}
-     * @allow (get) User A can read their own resident profile. (auth.uid: "user_a", residentId: "user_a")
-     * @allow (create) User A can create their own resident profile. (auth.uid: "user_a", residentId: "user_a")
-     * @allow (update) User A can update their own resident profile. (auth.uid: "user_a", residentId: "user_a")
-     * @allow (delete) User A can delete their own resident profile. (auth.uid: "user_a", residentId: "user_a")
-     * @deny (get) User A cannot read User B's resident profile. (auth.uid: "user_a", residentId: "user_b")
-     * @deny (create) User A cannot create a resident profile with User B's ID. (auth.uid: "user_a", residentId: "user_b")
-     * @deny (update) User A cannot update User B's resident profile. (auth.uid: "user_a", residentId: "user_b")
-     * @deny (delete) User A cannot delete User B's resident profile. (auth.uid: "user_a", residentId: "user_b")
-     * @principle Enforces document ownership for reads and writes.
      */
     match /residents/{residentId} {
-      allow get: if isOwner(residentId) || isAdmin();
+      allow get: if isOwner(residentId) || isStaff();
       allow list: if isStaff();
+      // Only the user themselves can create their own resident profile
       allow create: if isOwner(residentId) && request.resource.data.userId == residentId;
-      allow update: if isExistingOwner(residentId) || isAdmin();
-      allow delete: if isExistingOwner(residentId) || isAdmin();
+      allow update: if isOwner(residentId) || isStaff();
+      allow delete: if isOwner(residentId) || isAdmin();
     }
 
     /**
      * @description Rules for the /documentRequests/{documentRequestId} collection.
-     * @path /documentRequests/{documentRequestId}
-     * @allow (create) User A can create a document request for themselves if residentId matches. (auth.uid: "user_a", request.resource.data.residentId: "user_a")
-     * @allow (get) User A can read a document request if residentId matches. (auth.uid: "user_a", resource.data.residentId: "user_a")
-     * @allow (list) User A can list their document requests if residentId matches. (auth.uid: "user_a", resource.data.residentId: "user_a")
-     * @allow (update) User A can update a document request for themselves if residentId matches. (auth.uid: "user_a", resource.data.residentId: "user_a")
-     * @allow (delete) User A can delete a document request for themselves if residentId matches. (auth.uid: "user_a", resource.data.residentId: "user_a")
-     * @deny (create) User A cannot create a document request for User B. (auth.uid: "user_a", request.resource.data.residentId: "user_b")
-     * @deny (get) User A cannot read a document request for User B. (auth.uid: "user_a", resource.data.residentId: "user_b")
-     * @deny (list) User A cannot list document requests for User B. (auth.uid: "user_a", resource.data.residentId: "user_b")
-     * @deny (update) User A cannot update a document request for User B. (auth.uid: "user_a", resource.data.residentId: "user_b")
-     * @deny (delete) User A cannot delete a document request for User B. (auth.uid: "user_a", resource.data.residentId: "user_b")
-     * @principle Enforces document ownership for writes, and allows residents to read/write their own document requests.
      */
     match /documentRequests/{documentRequestId} {
       allow get: if isSignedIn() && (isStaff() || resource.data.residentId == request.auth.uid);
-      allow list: if isSignedIn() && (isStaff() || request.query.where.residentId == request.auth.uid);
+      allow list: if isSignedIn() && (isStaff() || (request.query.keys().hasAny(['where']) && request.query.where.residentId == request.auth.uid));
+      // A resident can only create a request for themselves.
       allow create: if isSignedIn() && request.resource.data.residentId == request.auth.uid;
+      // Staff can update/delete any request. Residents can only manage their own.
       allow update, delete: if isSignedIn() && (isStaff() || resource.data.residentId == request.auth.uid);
     }
 
     /**
      * @description Rules for the /payments/{paymentId} collection.
-     * @path /payments/{paymentId}
-     * @allow (get) Only authenticated users can get payment information.
-     * @allow (list) Only authenticated users can list payment information.
-     * @deny (create) No direct creation of payment documents. Payments are handled server-side.
-     * @deny (update) No direct updating of payment documents. Payments are handled server-side.
-     * @deny (delete) No direct deletion of payment documents. Payments are handled server-side.
-     * @principle Payments are managed server-side and not directly modifiable by clients.
+     * Payments are managed by staff.
      */
     match /payments/{paymentId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow read, write: if isStaff();
     }
 
     /**
      * @description Rules for the /officials/{officialId} collection.
-     * @path /officials/{officialId}
-     * @allow (get) Only admins can get official information.
-     * @allow (list) Only admins can list official information.
-     * @allow (create) Only admins can create official information.
-     * @allow (update) Only admins can update official information.
-     * @allow (delete) Only admins can delete official information.
-     * @deny (get) Non-admins cannot get official information.
-     * @deny (list) Non-admins cannot list official information.
-     * @deny (create) Non-admins cannot create official information.
-     * @deny (update) Non-admins cannot update official information.
-     * @deny (delete) Non-admins cannot delete official information.
-     * @principle Officials data is only manageable by admins.
+     * Only Admins can manage officials.
      */
     match /officials/{officialId} {
       allow read, write: if isAdmin();
@@ -170,38 +106,11 @@ service cloud.firestore {
 
     /**
      * @description Rules for the /barangayConfig/{configId} collection.
-     * @path /barangayConfig/{configId}
-     * @allow (get) Anyone can read the barangay configuration.
-     * @allow (list) Anyone can list the barangay configuration.
-     * @allow (create) Only admins can create barangay configuration.
-     * @allow (update) Only admins can update barangay configuration.
-     * @allow (delete) Only admins can delete barangay configuration.
-     * @deny (create) Non-admins cannot create barangay configuration.
-     * @deny (update) Non-admins cannot update barangay configuration.
-     * @deny (delete) Non-admins cannot delete barangay configuration.
-     * @principle Allows public read access, but restricts writes to admins.
+     * Publicly readable, but only writable by Admins.
      */
     match /barangayConfig/{configId} {
       allow read: if true;
       allow write: if isAdmin();
-    }
-
-    /**
-     * @description Rules for the /roles_admin/{userId} collection. Document existence grants admin role.
-     * @path /roles_admin/{userId}
-     * @allow (get) Admins can check for other admins.
-     * @allow (list) Listing admins is not allowed.
-     * @allow (create) Only a server function can assign admin roles.
-     * @allow (update) Updating admin roles is not allowed.
-     * @allow (delete) Only a server function can revoke admin roles.
-     * @principle Admin role is determined by document existence.
-     */
-    match /roles_admin/{userId} {
-      allow get: if isAdmin();
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
     }
   }
 }
