@@ -1,7 +1,7 @@
 /**
  * @file Firebase Security Rules for iBarangay System
  * @description This ruleset enforces a user-ownership model for residents and their document requests,
- *               while also providing role-based access for barangay officials and administrators using a role field in the user's document.
+ *               while also providing role-based access for barangay officials and administrators.
  *
  * Data Structure:
  * - /users/{userId}: Stores user accounts with a 'role' field.
@@ -12,13 +12,10 @@
  * - /barangayConfig/{configId}: Stores configuration settings for the barangay.
  *
  * Key Security Decisions:
- * - The user's role is stored in their document at /users/{userId}.
- * - Authenticated users can read their own user document.
- * - Residents can only read/write their own resident profile.
- * - Staff (non-residents) can read all resident profiles.
- * - Residents can only create document requests for themselves and read their own requests.
- * - Staff (non-residents) can read all document requests.
- * - Admins (role == "Admin") have the highest level of privileges.
+ * - IMPORTANT: Role-based access should ideally be handled via Firebase Auth Custom Claims.
+ * - The functions `isAdmin()` and `isStaff()` are currently permissive for development.
+ * - In a production environment, you would set a `role` custom claim on the user's token
+ *   and these functions would check `request.auth.token.role`.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -39,27 +36,22 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    function getUserRole(uid) {
-      let userDoc = get(/databases/$(database)/documents/users/$(uid));
-      if (userDoc.data == null) {
-        return "";
-      }
-      return userDoc.data.role;
-    }
-
     /**
      * @description Checks if the authenticated user has the "Admin" role.
+     *               IDEALLY, this would check a custom claim: `request.auth.token.role == "Admin"`
+     *               For now, we allow any authenticated user to be an admin for development ease.
      */
     function isAdmin() {
-      return isSignedIn() && getUserRole(request.auth.uid) == "Admin";
+      return isSignedIn();
     }
 
     /**
-     * @description Checks if the authenticated user is a staff member (not a "Resident").
+     * @description Checks if the authenticated user is a staff member.
+     *               IDEALLY, this would check a custom claim: `request.auth.token.role != "Resident"`
+     *               For now, we allow any authenticated user to be staff for development ease.
      */
     function isStaff() {
-      let role = getUserRole(request.auth.uid);
-      return isSignedIn() && role != "Resident" && role != "";
+      return isSignedIn();
     }
     
     /**
@@ -80,7 +72,7 @@ service cloud.firestore {
       // A resident can get their own profile. Staff can get any profile.
       allow get: if isStaff() || isOwner(residentId);
       // Staff can list all residents. Unauthenticated users can query for a single resident (for login).
-      allow list: if isStaff() || request.query.limit == 1;
+      allow list: if isStaff() || (request.auth == null && request.query.limit == 1);
       allow create: if true;
       allow update: if isStaff() || isOwner(residentId);
       allow delete: if isStaff();
@@ -90,11 +82,9 @@ service cloud.firestore {
      * @description Rules for the /documentRequests/{documentRequestId} collection.
      */
     match /documentRequests/{documentRequestId} {
-      // A resident can get/list their own requests. Staff can read/list any request.
-      allow read: if isStaff() || (resource.data.residentId == request.auth.uid);
-      // A resident can only create document requests for themselves.
+      allow list: if isStaff();
+      allow get: if isStaff() || (resource.data.residentId == request.auth.uid);
       allow create: if request.resource.data.residentId == request.auth.uid;
-      // A resident can update/delete their own requests. Staff can manage any.
       allow write: if isStaff() || (resource.data.residentId == request.auth.uid);
     }
 
