@@ -149,13 +149,11 @@ export default function CertificatePage() {
                 <footer className="mt-24 flex justify-end">
                     <div className="text-center w-64">
                          <div className="mb-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" className="h-20 w-full">
-                                <path d="M10 50 C 20 20, 40 50, 50 50 S 70 80, 80 50 C 90 20, 110 80, 130 50" stroke="black" fill="transparent" strokeWidth="3" strokeLinecap="round"/>
-                                <path d="M150 50 C 160 20, 180 80, 200 50 S 230 80, 250 50" stroke="black" fill="transparent" strokeWidth="3" strokeLinecap="round"/>
-                                <path d="M270 50 Q 280 20, 300 50 T 330 50 T 360 50" stroke="black" fill="transparent" strokeWidth="3" strokeLinecap="round"/>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 100" className="h-20 w-full">
+                                <path d="M10,50 C22.5,20,41.5,25.5,50,40 C60,55,70,50,80,45 C90,40,110,30,125,50 C140,70,155,60,165,50 C175,40,190,20,200,50 C210,80,225,60,235,50 C245,40,260,30,270,50 C280,70,295,60,305,50 C315,40,330,20,340,50 C350,80,365,60,375,50 C385,40,400,30,410,50 C420,70,435,60,445,50 C455,40,470,20,480,50" stroke="#000080" fill="transparent" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
                         </div>
-                        <p className="font-bold uppercase border-t-2 border-black pt-2">Juan Dela Cruz</p>
+                        <p className="font-bold uppercase border-t-2 border-black pt-2">AMADO MAGTIBAY</p>
                         <p>Punong Barangay</p>
                     </div>
                 </footer>
