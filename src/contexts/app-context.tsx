@@ -12,7 +12,7 @@ import {
   initiateSignOut,
   useDoc,
 } from '@/firebase';
-import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs, limit } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
@@ -110,8 +110,29 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const login = async (credential: string, password: string) => {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
-    // Simplified: Only attempt to sign in with email.
-    await signInWithEmailAndPassword(auth, credential, password);
+
+    let email = credential;
+    // Check if the credential is a User ID (e.g., "R-XXXXXX")
+    if (!credential.includes('@')) {
+        const upperCredential = credential.toUpperCase();
+        const residentsRef = collection(firestore, 'residents');
+        const q = query(residentsRef, where('userId', '==', upperCredential), limit(1));
+
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+            throw new Error('Invalid User ID.');
+        }
+        
+        const residentDoc = querySnapshot.docs[0].data() as Resident;
+        if (!residentDoc.email) {
+            throw new Error('Resident profile does not have an associated email for login.');
+        }
+        email = residentDoc.email;
+    }
+
+    // Attempt to sign in with the determined email
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
   const logout = () => {
@@ -172,11 +193,12 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!firestore) return;
     const residentRef = doc(firestore, 'residents', updatedResident.id);
     updateDocumentNonBlocking(residentRef, updatedResident);
-
+  
+    // Also update the associated user document
     const userRef = doc(firestore, 'users', updatedResident.id);
     updateDocumentNonBlocking(userRef, { 
       name: `${updatedResident.firstName} ${updatedResident.lastName}`,
-      // We don't update email here as it's tied to auth.
+      email: updatedResident.email, // Keep email in sync
     });
   };
 
@@ -195,10 +217,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
-    if (!firestore || !documentRequests || !currentUser?.residentId) {
+    if (!firestore || !documentRequests || !currentUser?.id) {
        toast({
           title: 'Error',
-          description: 'Could not identify the current resident. Please log in again.',
+          description: 'Could not identify the current user. Please log in again.',
           variant: 'destructive',
        });
        return;
@@ -208,7 +230,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const newIdNumber = (documentRequests?.length ?? 0) + 1;
     const newRequest: DocumentRequest = {
         ...request,
-        residentId: currentUser.residentId,
+        residentId: currentUser.id,
         residentName: currentUser.name,
         id: newId,
         requestDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD

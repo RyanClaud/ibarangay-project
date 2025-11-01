@@ -35,7 +35,7 @@ export default function LoginPage() {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
         case 'auth/invalid-credential':
-          description = 'Invalid email or password. Please try again.';
+          description = 'Invalid credentials. Please try again.';
           break;
         case 'auth/invalid-email':
           description = 'The email address is not valid.';
@@ -89,10 +89,10 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="credential">Email</Label>
+              <Label htmlFor="credential">Email or User ID</Label>
               <Input 
                 id="credential" 
-                placeholder="e.g., admin@ibarangay.com" 
+                placeholder="e.g., admin@ibarangay.com or R-1001" 
                 required 
                 value={credential}
                 onChange={(e) => setCredential(e.target.value)}
