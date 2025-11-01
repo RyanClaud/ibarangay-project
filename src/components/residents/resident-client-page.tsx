@@ -45,8 +45,8 @@ export function ResidentClientPage() {
     return b.id.localeCompare(a.id);
   });
 
-  const handleAddResident = (newResident: Omit<Resident, 'id' | 'avatarUrl' | 'userId' | 'address'> & {email: string}) => {
-    addResident(newResident);
+  const handleAddResident = async (newResident: Omit<Resident, 'id' | 'avatarUrl' | 'userId' | 'address'> & {email: string}) => {
+    await addResident(newResident);
   };
 
   const handleUpdateResident = (residentId: string, dataToUpdate: Partial<Resident>) => {

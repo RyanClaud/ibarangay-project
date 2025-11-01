@@ -46,7 +46,7 @@ type ResidentFormData = z.infer<typeof residentSchema>;
 interface AddResidentDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => void;
+  onAddResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => Promise<void>;
 }
 
 export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResidentDialogProps) {
