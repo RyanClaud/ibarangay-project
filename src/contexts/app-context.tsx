@@ -21,7 +21,7 @@ interface AppContextType {
   setCurrentUser: (user: User | null) => void;
   logout: () => void;
   residents: Resident[] | null;
-  addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => void;
+  addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => void;
   updateResident: (resident: Resident) => void;
   deleteResident: (residentId: string) => void;
   documentRequests: DocumentRequest[] | null;
@@ -47,15 +47,50 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const residentsQuery = useMemoFirebase(() => (firestore && currentUser ? collection(firestore, 'residents') : null), [firestore, currentUser]);
   const { data: residents, isLoading: isResidentsLoading } = useCollection<Resident>(residentsQuery);
-
-  const documentRequestsQuery = useMemoFirebase(() => (firestore && currentUser ? collection(firestore, 'documentRequests') : null), [firestore, currentUser]);
+  
+  const documentRequestsQuery = useMemoFirebase(() => {
+    if (!firestore || !currentUser) return null;
+    if (currentUser.role === 'Resident') {
+      // For residents, only fetch their own document requests
+      return query(collection(firestore, 'documentRequests'), where('residentId', '==', currentUser.id));
+    }
+    // For staff, fetch all document requests
+    return collection(firestore, 'documentRequests');
+  }, [firestore, currentUser]);
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
   const isDataLoading = !currentUser || isUsersLoading || isResidentsLoading || isRequestsLoading;
 
   const login = async (credential: string, password: string) => {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
-    await signInWithEmailAndPassword(auth, credential, password);
+    
+    // Check if the credential is an email
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(credential);
+
+    if (isEmail) {
+        await signInWithEmailAndPassword(auth, credential, password);
+        return;
+    }
+    
+    // If not an email, assume it's a User ID and try to find the corresponding user.
+    // This query is now allowed by the updated security rules for unauthenticated users.
+    const residentsRef = collection(firestore, 'residents');
+    const q = query(residentsRef, where("userId", "==", credential));
+    
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+        throw new Error("auth/user-not-found");
+    }
+    
+    const residentDoc = querySnapshot.docs[0].data() as Resident;
+    const residentEmail = residentDoc.email;
+
+    if (!residentEmail) {
+        throw new Error("auth/invalid-credential"); // Resident has no email on file
+    }
+
+    await signInWithEmailAndPassword(auth, residentEmail, password);
   };
 
   const logout = () => {
@@ -64,7 +99,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     setCurrentUser(null);
   };
 
-  const addResident = async (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => {
+  const addResident = async (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => {
     if (!firestore || !auth) return;
     
     const defaultPassword = 'password';
@@ -86,6 +121,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         userId: userId,
         address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
         avatarUrl: `https://picsum.photos/seed/${residentId}/100/100`,
+        email: newResidentData.email, // Ensure email is stored
       };
       const residentRef = doc(firestore, 'residents', residentId);
       batch.set(residentRef, newResident);
@@ -141,7 +177,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
     if (!firestore || !documentRequests) return;
     const newId = doc(collection(firestore, 'documentRequests')).id;
-    const newIdNumber = documentRequests.length + 1;
+    const newIdNumber = (documentRequests?.length ?? 0) + 1;
     const newRequest: DocumentRequest = {
         ...request,
         id: newId,
