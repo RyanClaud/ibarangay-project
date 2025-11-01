@@ -59,10 +59,22 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
     let emailToLogin = credential;
     
-    // Check if the credential is a resident ID (doesn't contain '@' and starts with 'R-')
-    if (!credential.includes('@') && credential.toUpperCase().startsWith('R-')) {
-        // Construct the predictable email address for the resident
-        emailToLogin = `${credential.toUpperCase()}@ibarangay.local`;
+    // Check if the credential is a resident ID (doesn't contain '@')
+    if (!credential.includes('@')) {
+        const q = query(collection(firestore, "residents"), where("userId", "==", credential));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            const residentDoc = querySnapshot.docs[0];
+            const userDoc = await getDoc(doc(firestore, 'users', residentDoc.id));
+            if (userDoc.exists()) {
+                emailToLogin = userDoc.data().email;
+            } else {
+                throw new Error("User record not found for this resident ID.");
+            }
+        } else {
+             // If not found as a resident ID, assume it's an email for a staff member
+             emailToLogin = credential;
+        }
     }
     
     await signInWithEmailAndPassword(auth, emailToLogin, password);
@@ -75,16 +87,15 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const addResident = async (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => {
-    if (!firestore || !auth || !residents) return;
+    if (!firestore || !auth) return;
     
-    const newResUserIdNumber = (residents?.length ?? 1000) + 1;
-    const residentUserId = `R-${newResUserIdNumber}`;
-    // Use a predictable email based on the User ID for login purposes
-    const residentEmail = `${residentUserId}@ibarangay.local`;
+    // Create a temporary, unique email for Firebase Auth creation
+    const tempEmail = `${Date.now()}@ibarangay.local`;
+    const defaultPassword = 'password';
 
     try {
       // Step 1: Create the user in Firebase Authentication
-      const userCredential = await createUserWithEmailAndPassword(auth, residentEmail, 'password');
+      const userCredential = await createUserWithEmailAndPassword(auth, tempEmail, defaultPassword);
       const authUser = userCredential.user;
       
       const batch = writeBatch(firestore);
@@ -93,7 +104,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       const newResident: Resident = {
         ...newResidentData,
         id: authUser.uid, // CRITICAL: Use Auth UID for the resident document ID
-        userId: residentUserId, 
+        userId: authUser.uid, // Use Auth UID as the User ID as well for simplicity and uniqueness
         address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
         avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
       };
@@ -104,7 +115,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       const newUser: User = {
         id: authUser.uid, // CRITICAL: Use the same Auth UID for the user document ID
         name: `${newResidentData.firstName} ${newResidentData.lastName}`,
-        email: residentEmail,
+        email: tempEmail, // Store the temporary email
         avatarUrl: newResident.avatarUrl,
         role: 'Resident',
         residentId: newResident.id,
@@ -251,3 +262,5 @@ export function useAppContext() {
   }
   return context;
 }
+
+    

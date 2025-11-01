@@ -76,7 +76,8 @@ service cloud.firestore {
       // residentId is their auth uid
       allow get: if isStaff() || isOwner(residentId);
       // Allow staff to list all residents.
-      allow list: if isStaff();
+      // Also, allow an unauthenticated query if and only if it's for the login lookup.
+      allow list: if isStaff() || (request.auth == null && request.query.keys().hasOnly(['userId']));
       // Only the user themselves can create their own resident profile
       allow create: if isOwner(residentId);
       allow update: if isStaff() || isOwner(residentId);
@@ -123,3 +124,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
