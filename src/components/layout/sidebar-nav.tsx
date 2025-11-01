@@ -123,7 +123,7 @@ export function SidebarNav() {
           <SidebarMenuItem>
             <SidebarMenuButton 
               onClick={handleLogout}
-              disabled={!currentUser}
+              disabled={!isClient || !currentUser}
               tooltip={{
                 children: 'Logout',
                 className: 'bg-primary text-primary-foreground',
