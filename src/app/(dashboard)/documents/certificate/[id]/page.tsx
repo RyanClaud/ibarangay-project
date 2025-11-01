@@ -5,19 +5,38 @@ import { useAppContext } from "@/contexts/app-context";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import type { DocumentRequest } from "@/lib/types";
+import type { DocumentRequest, Resident } from "@/lib/types";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { Logo } from "@/components/logo";
 import { toast } from "@/hooks/use-toast";
+import { useMemo } from "react";
 
 export default function CertificatePage() {
   const { id } = useParams();
-  const { documentRequests, currentUser, isDataLoading, updateDocumentRequestStatus } = useAppContext();
+  const { documentRequests, residents, currentUser, isDataLoading, updateDocumentRequestStatus } = useAppContext();
   const router = useRouter();
 
+  // Find the specific request from the list
+  const request: DocumentRequest | undefined = useMemo(() => 
+    (documentRequests || []).find(r => r.id === id), 
+    [documentRequests, id]
+  );
+  
+  // Find the associated resident. For residents, it's their own data. For staff, it's from the snapshot or main list.
+  const resident = useMemo(() => {
+    if (!request) return null;
+    // For staff, the snapshot is the source of truth for the certificate.
+    if (currentUser?.role !== 'Resident') {
+      return request.residentSnapshot;
+    }
+    // For a resident viewing their own certificate, find their profile in the main residents list.
+    return (residents || []).find(res => res.id === request.residentId);
+  }, [request, residents, currentUser]);
+
+
   // Show loader if context data is not yet available
-  if (isDataLoading || !currentUser || !documentRequests) {
+  if (isDataLoading || !currentUser) {
     return (
         <div className="flex h-full w-full items-center justify-center p-8">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -25,14 +44,8 @@ export default function CertificatePage() {
     );
   }
 
-  const request: DocumentRequest | undefined = documentRequests.find(r => r.id === id);
-  
-  // Use the resident snapshot from the request if it exists, otherwise deny access.
-  const resident = request?.residentSnapshot;
-
+  // If the request isn't found, or if the resident data for the cert can't be determined.
   if (!request || !resident) {
-    // If the snapshot doesn't exist, it means the request wasn't approved properly.
-    // Or, if the request itself isn't found.
     return notFound();
   }
 

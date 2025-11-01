@@ -66,25 +66,30 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const { data: singleUser, isLoading: isSingleUserLoading } = useDoc<User>(singleUserDocRef);
   
   const singleResidentDocRef = useMemoFirebase(() => {
-    if (!firestore || !currentUser?.residentId || currentUser.role !== 'Resident') return null;
-    return doc(firestore, 'residents', currentUser.residentId);
+    // This query is now just for the resident's own data.
+    if (!firestore || !currentUser?.id || currentUser.role !== 'Resident') return null;
+    return doc(firestore, 'residents', currentUser.id);
   }, [firestore, currentUser]);
   const { data: singleResident, isLoading: isSingleResidentLoading } = useDoc<Resident>(singleResidentDocRef);
   
   // --- Combined Data Logic ---
   const users = useMemo(() => {
     if (!currentUser) return null;
+    // For residents, only their own user object is needed.
     if (currentUser.role === 'Resident') {
       return singleUser ? [singleUser] : [];
     }
+    // For staff, they see all users.
     return allUsers;
   }, [currentUser, allUsers, singleUser]);
 
   const residents = useMemo(() => {
     if (!currentUser) return null;
+    // For residents, their context should only contain their own profile.
     if (currentUser.role === 'Resident') {
       return singleResident ? [singleResident] : [];
     }
+    // For staff, they see all residents.
     return allResidents;
   }, [currentUser, allResidents, singleResident]);
 
