@@ -98,7 +98,8 @@
         "lastName",
         "address",
         "birthdate",
-        "householdNumber"
+        "householdNumber",
+        "email"
       ]
     },
     "DocumentRequest": {

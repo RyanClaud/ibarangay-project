@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { User, Resident, DocumentRequest, DocumentRequestStatus, Role } from '@/lib/types';
-import { users as initialUsersData } from '@/lib/data';
 import {
   useCollection,
   useFirebase,
@@ -56,30 +55,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const login = async (credential: string, password: string) => {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
-
-    let emailToLogin = credential;
-    
-    // Check if the credential is a resident ID (doesn't contain '@')
-    if (!credential.includes('@')) {
-        const q = query(collection(firestore, "residents"), where("userId", "==", credential));
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-            const residentDoc = querySnapshot.docs[0];
-            const userDoc = await getDoc(doc(firestore, 'users', residentDoc.id));
-            if (userDoc.exists()) {
-                emailToLogin = userDoc.data().email;
-            } else {
-                throw new Error("User record not found for this resident ID.");
-            }
-        } else {
-             // If not found as a resident ID, it might be an email for a staff member.
-             // We let it proceed with the original credential as email.
-             console.log(`Could not find resident with User ID: ${credential}. Attempting login with credential as email.`);
-        }
-    }
-    
-    await signInWithEmailAndPassword(auth, emailToLogin, password);
+    await signInWithEmailAndPassword(auth, credential, password);
   };
 
   const logout = () => {
@@ -94,11 +70,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const defaultPassword = 'password';
 
     try {
-      const newAuthUserRef = doc(collection(firestore, 'temp'));
-      const tempEmail = `${newAuthUserRef.id}@ibarangay.local`;
-
-      // Step 1: Create the user in Firebase Authentication
-      const userCredential = await createUserWithEmailAndPassword(auth, tempEmail, defaultPassword);
+      // Step 1: Create the user in Firebase Authentication with the provided email
+      const userCredential = await createUserWithEmailAndPassword(auth, newResidentData.email, defaultPassword);
       const authUser = userCredential.user;
       
       const batch = writeBatch(firestore);
@@ -121,7 +94,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       const newUser: User = {
         id: residentId,
         name: `${newResidentData.firstName} ${newResidentData.lastName}`,
-        email: tempEmail,
+        email: newResidentData.email,
         avatarUrl: newResident.avatarUrl,
         role: 'Resident',
         residentId: residentId,
@@ -135,7 +108,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error("Error creating new resident:", error);
       if (error.code === 'auth/email-already-in-use') {
-         throw new Error("An account for this resident might already exist.");
+         throw new Error("An account for this email already exists.");
       }
        throw new Error("Failed to create resident account.");
     }

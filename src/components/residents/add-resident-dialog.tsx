@@ -33,6 +33,7 @@ import { toast } from '@/hooks/use-toast';
 const residentSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('A valid email is required for login.'),
   purok: z.string().min(1, 'Purok / Sitio is required'),
   birthdate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: 'Invalid date format. Please use MM-dd-yyyy.',
@@ -54,6 +55,7 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
     defaultValues: {
       firstName: '',
       lastName: '',
+      email: '',
       purok: '',
       birthdate: '',
       householdNumber: '',
@@ -66,7 +68,7 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
     });
     toast({
         title: 'Resident Added',
-        description: `${data.firstName} ${data.lastName} has been added to the masterlist.`,
+        description: `${data.firstName} ${data.lastName} has been added. Their default password is 'password'.`,
     });
     form.reset();
     onClose();
@@ -74,11 +76,11 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Add New Resident</DialogTitle>
           <DialogDescription>
-            Enter the details of the new resident. Click save when you&apos;re done.
+            Enter the details of the new resident. An email is required for login credentials.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -111,6 +113,21 @@ export function AddResidentDialog({ isOpen, onClose, onAddResident }: AddResiden
                 )}
                 />
             </div>
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Address (for login)</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="juan.cruz@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="purok"

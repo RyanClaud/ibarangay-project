@@ -34,6 +34,7 @@ import { toast } from '@/hooks/use-toast';
 const residentSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Invalid email address'),
   purok: z.string().min(1, 'Purok / Sitio is required'),
   birthdate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: 'Invalid date format. Please use MM-dd-yyyy.',
@@ -60,6 +61,7 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
       form.reset({
         firstName: resident.firstName,
         lastName: resident.lastName,
+        email: resident.email,
         purok: resident.purok,
         birthdate: resident.birthdate,
         householdNumber: resident.householdNumber,
@@ -82,11 +84,11 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Edit Resident</DialogTitle>
           <DialogDescription>
-            Update the details of the resident. Click save when you&apos;re done.
+            Update the details of the resident. Click save when you're done.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -119,6 +121,19 @@ export function EditResidentDialog({ isOpen, onClose, onUpdateResident, resident
                 )}
                 />
             </div>
+             <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Address</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="juan.cruz@example.com" {...field} disabled />
+                  </FormControl>
+                   <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="purok"

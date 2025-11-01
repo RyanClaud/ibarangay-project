@@ -19,6 +19,7 @@ export type Resident = {
   birthdate: string;
   householdNumber: string;
   avatarUrl: string;
+  email: string;
 };
 
 export type DocumentType = "Barangay Clearance" | "Certificate of Residency" | "Certificate of Indigency" | "Business Permit" | "Good Moral Character Certificate" | "Solo Parent Certificate";
