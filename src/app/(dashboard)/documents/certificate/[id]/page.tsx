@@ -46,7 +46,10 @@ export default function CertificatePage() {
             <h1 className="text-2xl font-bold font-headline">Certificate Preview</h1>
             <p className="text-muted-foreground">This is a preview of the certificate. Click the print button to get a physical copy.</p>
         </div>
-        <div className="bg-white text-black max-w-4xl mx-auto p-10 border-4 border-primary shadow-2xl my-8 print:shadow-none print:border-none print:my-0" id="certificate">
+        <div className="bg-white text-black max-w-4xl mx-auto p-10 border-4 border-primary shadow-2xl my-8 print:shadow-none print:border-none print:my-0 relative" id="certificate">
+            <div className="absolute inset-0 flex items-center justify-center -z-10 opacity-10">
+                <Logo className="size-[400px] text-primary" />
+            </div>
             <header className="text-center space-y-4">
                 <div className="flex justify-center items-center gap-4">
                     <Logo className="size-20" />
