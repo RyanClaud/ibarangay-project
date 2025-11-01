@@ -1,30 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { CheckCircle, Loader2, Search } from "lucide-react";
 import type { DocumentRequest } from "@/lib/types";
-import { toast } from "@/hooks/use-toast";
 import { useAppContext } from "@/contexts/app-context";
 import {
   Table,
@@ -35,69 +12,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "../ui/badge";
-import { format } from "date-fns";
-
-const searchSchema = z.object({
-  referenceNumber: z.string().min(1, "Reference number is required."),
-});
-
-type SearchFormData = z.infer<typeof searchSchema>;
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export function PaymentsClientPage() {
-  const { documentRequests, updateDocumentRequestStatus } = useAppContext();
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [foundRequest, setFoundRequest] = React.useState<DocumentRequest | null>(null);
-
-  const searchForm = useForm<SearchFormData>({
-    resolver: zodResolver(searchSchema),
-    defaultValues: { referenceNumber: "" },
-  });
-
-  const onSearchSubmit = (data: SearchFormData) => {
-    setIsLoading(true);
-    setFoundRequest(null);
-    const searchInput = data.referenceNumber.trim().toLowerCase();
-    const request = (documentRequests || []).find(
-      (req) =>
-        req.referenceNumber && // Defensive check
-        req.referenceNumber.toLowerCase() === searchInput &&
-        (req.status === "Paid" || req.status === "Released")
-    );
-
-    if (request) {
-      setFoundRequest(request);
-    } else {
-      toast({
-        title: "Request Not Found",
-        description:
-          "No paid or released request was found with that reference number.",
-        variant: "destructive",
-      });
-    }
-    setIsLoading(false);
-  };
-
-  const handleReleaseDocument = () => {
-    if (!foundRequest) return;
-    
-    // Only update if the status is not already "Released"
-    if (foundRequest.status !== 'Released') {
-      updateDocumentRequestStatus(foundRequest.id, 'Released');
-      toast({
-        title: "Document Released",
-        description: `Request for ${foundRequest.residentName} has been marked as released.`,
-      });
-    } else {
-       toast({
-        title: "Document Already Released",
-        description: `This document has already been released.`,
-      });
-    }
-
-    // Reset the state
-    setFoundRequest(null);
-    searchForm.reset();
-  };
+  const { documentRequests } = useAppContext();
   
   const recentPayments = (documentRequests || [])
     .filter(req => req.status === 'Paid' || req.status === 'Released')
@@ -105,68 +29,7 @@ export function PaymentsClientPage() {
     .slice(0, 10);
 
   return (
-    <div className="grid gap-8 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Verify Submitted Payments</CardTitle>
-          <CardDescription>
-            Use the resident's reference number to verify their submitted payment and release the document.
-          </CardDescription>
-        </CardHeader>
-        <Form {...searchForm}>
-          <form onSubmit={searchForm.handleSubmit(onSearchSubmit)}>
-            <CardContent>
-              <FormField
-                control={searchForm.control}
-                name="referenceNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Search Reference Number</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <Input
-                          placeholder="e.g., IBGY-240723001"
-                          {...field}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <Button type="submit" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : <Search />}
-                        Search
-                      </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </form>
-        </Form>
-        {foundRequest && (
-            <div className="fade-in">
-                <CardHeader>
-                    <CardTitle>Payment Verification</CardTitle>
-                    <CardDescription>A resident has submitted the following payment details. Please verify them with your records.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     <div className="space-y-3 rounded-md border bg-muted p-4 text-sm">
-                        <p><span className="font-semibold text-muted-foreground">Resident:</span> {foundRequest.residentName}</p>
-                        <p><span className="font-semibold text-muted-foreground">Document:</span> {foundRequest.documentType}</p>
-                        <p><span className="font-semibold text-muted-foreground">Amount:</span> <span className="font-bold text-base text-foreground">₱{foundRequest.amount.toFixed(2)}</span></p>
-                        <p className="border-t pt-3"><span className="font-semibold text-muted-foreground">Payment Method:</span> {foundRequest.paymentDetails?.method}</p>
-                        <p><span className="font-semibold text-muted-foreground">Transaction ID:</span> {foundRequest.paymentDetails?.transactionId}</p>
-                         <p><span className="font-semibold text-muted-foreground">Payment Date:</span> {foundRequest.paymentDetails ? format(new Date(foundRequest.paymentDetails.paymentDate), 'PPP p') : 'N/A'}</p>
-                    </div>
-                </CardContent>
-                <CardFooter>
-                    <Button onClick={handleReleaseDocument}>
-                        <CheckCircle className="mr-2"/> Verify & Release Document
-                    </Button>
-                </CardFooter>
-            </div>
-        )}
-      </Card>
-      
+    <div className="grid gap-8">
        <Card>
         <CardHeader>
           <CardTitle>Recent Transactions</CardTitle>
