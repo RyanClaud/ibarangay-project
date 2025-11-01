@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UserManagementClientPage } from "@/components/users/user-management-client-page";
 
 export default function SettingsPage() {
   return (
@@ -44,16 +45,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
         <TabsContent value="users">
-            <Card>
-                <CardHeader>
-                    <CardTitle>User Management</CardTitle>
-                    <CardDescription>Add, edit, or remove staff and officials.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {/* User management table would go here */}
-                    <p className="text-muted-foreground">User management interface coming soon.</p>
-                </CardContent>
-            </Card>
+            <UserManagementClientPage />
         </TabsContent>
         <TabsContent value="system">
             <Card>

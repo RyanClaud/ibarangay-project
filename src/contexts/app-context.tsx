@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode } from 'react';
-import type { User, Resident, DocumentRequest, DocumentRequestStatus } from '@/lib/types';
-import { documentRequests as initialDocumentRequests, residents as initialResidents, findUserByCredential, users } from '@/lib/data';
+import type { User, Resident, DocumentRequest, DocumentRequestStatus, Role } from '@/lib/types';
+import { documentRequests as initialDocumentRequests, residents as initialResidents, findUserByCredential, users as initialUsers } from '@/lib/data';
 
 interface AppContextType {
   currentUser: User | null;
@@ -15,20 +15,25 @@ interface AppContextType {
   setDocumentRequests: (requests: DocumentRequest[]) => void;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
+  users: User[];
+  addUser: (user: Omit<User, 'id' | 'avatarUrl'>) => void;
+  updateUser: (user: User) => void;
+  deleteUser: (userId: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // Find the admin user from the mock data to use as the default.
-const defaultUser = users.find(u => u.role === 'Admin');
+const defaultUser = initialUsers.find(u => u.role === 'Admin');
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(defaultUser || null);
   const [residents, setResidents] = useState<Resident[]>(initialResidents);
   const [documentRequests, setDocumentRequests] = useState<DocumentRequest[]>(initialDocumentRequests);
+  const [users, setUsers] = useState<User[]>(initialUsers);
 
   const login = (credential: string) => {
-    const user = findUserByCredential(credential);
+    const user = findUserByCredential(credential, users, residents);
     if (user) {
       setCurrentUser(user);
     }
@@ -59,6 +64,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const addUser = (user: Omit<User, 'id' | 'avatarUrl'>) => {
+    const newIdNumber = Math.max(...users.map(u => parseInt(u.id.replace('USR', ''))), 0) + 1;
+    const newUser: User = {
+      ...user,
+      id: `USR${String(newIdNumber).padStart(3, '0')}`,
+      avatarUrl: `https://picsum.photos/seed/${newIdNumber + 10}/100/100`,
+    };
+    setUsers(prev => [newUser, ...prev]);
+  };
+
+  const updateUser = (updatedUser: User) => {
+    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+  };
+
+  const deleteUser = (userId: string) => {
+    setUsers(prev => prev.filter(u => u.id !== userId));
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -71,6 +94,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDocumentRequests,
       addDocumentRequest,
       updateDocumentRequestStatus,
+      users,
+      addUser,
+      updateUser,
+      deleteUser,
     }}>
       {children}
     </AppContext.Provider>

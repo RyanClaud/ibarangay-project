@@ -31,18 +31,18 @@ export let documentRequests: DocumentRequest[] = [
   { id: 'DOC008', residentId: 'RES003', residentName: 'Apolinario Mabini', documentType: 'Barangay Clearance', requestDate: '2024-05-10', status: 'Released', trackingNumber: 'IBGY-240510001', amount: 50.00 },
 ];
 
-export const getLoggedInUser = (role: Role = 'Admin'): User => {
-  const user = users.find(u => u.role === role);
-  return user || users[0];
+export const getLoggedInUser = (role: Role = 'Admin', allUsers: User[]): User => {
+  const user = allUsers.find(u => u.role === role);
+  return user || allUsers[0];
 };
 
-export const findUserByCredential = (credential: string): User | undefined => {
+export const findUserByCredential = (credential: string, allUsers: User[], allResidents: Resident[]): User | undefined => {
   if (credential.startsWith('R-')) {
     // It's a resident User ID
-    const resident = residents.find(r => r.userId === credential);
+    const resident = allResidents.find(r => r.userId === credential);
     if (!resident) return undefined;
     // Find the corresponding user account, or create a mock one.
-    let user = users.find(u => u.residentId === resident.id);
+    let user = allUsers.find(u => u.residentId === resident.id);
     if (!user) {
       user = {
         id: `USR-${resident.id}`,
@@ -56,5 +56,5 @@ export const findUserByCredential = (credential: string): User | undefined => {
     return user;
   }
   // It's an email for staff
-  return users.find(u => u.email.toLowerCase() === credential.toLowerCase());
+  return allUsers.find(u => u.email.toLowerCase() === credential.toLowerCase());
 }

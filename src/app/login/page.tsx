@@ -21,6 +21,10 @@ export default function LoginPage() {
     const user = login(credential);
     
     if (user) {
+      toast({
+        title: 'Login Successful',
+        description: `Welcome back, ${user.name}!`,
+      });
       router.push('/dashboard');
     } else {
       toast({
