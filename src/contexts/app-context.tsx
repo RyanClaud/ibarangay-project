@@ -20,14 +20,14 @@ interface AppContextType {
   setCurrentUser: (user: User | null) => void;
   login: (credential: string) => User | undefined;
   logout: () => void;
-  residents: Resident[];
+  residents: Resident[] | null;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => void;
   updateResident: (resident: Resident) => void;
   deleteResident: (residentId: string) => void;
-  documentRequests: DocumentRequest[];
+  documentRequests: DocumentRequest[] | null;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
-  users: User[];
+  users: User[] | null;
   addUser: (user: Omit<User, 'id' | 'avatarUrl'>) => void;
   updateUser: (user: User) => void;
   deleteUser: (userId: string) => void;
@@ -40,66 +40,61 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const { firestore, user: firebaseUser, isUserLoading: isAuthLoading } = useFirebase();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
-  const { data: users = [], isLoading: isUsersLoading } = useCollection<User>(usersQuery);
+  // 1. Fetch users only after Firebase Auth has confirmed a user is logged in.
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore || isAuthLoading || !firebaseUser) return null; // Don't query if no user
+    return collection(firestore, 'users');
+  }, [firestore, isAuthLoading, firebaseUser]);
+  const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
 
+  // 2. Determine the app's current user based on the Auth user and the fetched users list.
   useEffect(() => {
-    if (!isAuthLoading && firebaseUser && users.length > 0) {
+    if (isAuthLoading) {
+      return; // Wait for auth to finish
+    }
+    if (!firebaseUser) {
+      setCurrentUser(null); // No firebase user, so no app user
+      return;
+    }
+    if (users) { // Wait for users collection to be loaded
       const appUser = users.find(u => u.id === firebaseUser.uid);
-      if (appUser) {
-        setCurrentUser(appUser);
-      } else {
-         // This can happen if the user exists in Firebase Auth but not in the 'users' collection
-         // Or if the users collection is not yet loaded.
-         // For resident users, their ID might be different. Let's find by email.
-         const userByEmail = users.find(u => u.email === firebaseUser.email);
-         if (userByEmail) {
-            setCurrentUser(userByEmail);
-         } else {
-           console.log("Could not find user in 'users' collection. Logging out.");
-           setCurrentUser(null);
-         }
-      }
-    } else if (!isAuthLoading && !firebaseUser) {
-        setCurrentUser(null);
+      setCurrentUser(appUser || null);
     }
   }, [firebaseUser, isAuthLoading, users]);
 
 
-  // Firestore collections - these will only run if currentUser is not null
+  // 3. Fetch other data only if we have determined the current app user.
   const residentsQuery = useMemoFirebase(() => (firestore && currentUser) ? collection(firestore, 'residents') : null, [firestore, currentUser]);
-  const { data: residents = [], isLoading: isResidentsLoading } = useCollection<Resident>(residentsQuery);
+  const { data: residents, isLoading: isResidentsLoading } = useCollection<Resident>(residentsQuery);
 
   const documentRequestsQuery = useMemoFirebase(() => (firestore && currentUser) ? collection(firestore, 'documentRequests') : null, [firestore, currentUser]);
-  const { data: documentRequests = [], isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
+  const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
-  const isDataLoading = isAuthLoading || (!!currentUser && (isResidentsLoading || isRequestsLoading || isUsersLoading));
+  // 4. Consolidate loading state.
+  const isDataLoading = isAuthLoading || (!!firebaseUser && (isUsersLoading || (!!currentUser && (isResidentsLoading || isRequestsLoading))));
 
   const login = (credential: string) => {
-    // We can only check against staff users here, as resident data isn't loaded yet.
-    // The actual "login" will be handled by Firebase Auth, and the effect above will set the user.
+    // This function is just a placeholder for initiating login.
+    // The actual user state change is handled by Firebase Auth and the effects above.
     const user = findUserByCredential(credential, initialUsers);
     if (user) {
-      // In a real app, you would now call signInWithEmailAndPassword(auth, user.email, password)
-      // For this mockup, we'll find the full user from the now-loaded collection and set it.
-       const fullUser = users.find(u => u.email.toLowerCase() === credential.toLowerCase() || u.userId?.toLowerCase() === credential.toLowerCase());
-       if (fullUser) {
-        setCurrentUser(fullUser);
-        return fullUser;
-       }
+        // In a real app, this would trigger Firebase's signInWithEmailAndPassword.
+        // For the mockup, we simulate this by finding the user in the initial staff list
+        // to show that the login attempt is valid. The actual state transition
+        // will happen when Firebase Auth reports a signed-in user.
+        console.log("Login attempt for:", user.email);
     }
-    // Resident login would be handled similarly by finding them in the residents collection if needed
-    // or ideally via Firebase Auth directly.
-    return undefined;
+    return user;
   };
 
   const logout = () => {
-    setCurrentUser(null);
     // In a real app: signOut(auth);
+    // The onAuthStateChanged listener will then set firebaseUser to null.
+    setCurrentUser(null);
   };
 
   const addResident = (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => {
-    if (!firestore) return;
+    if (!firestore || !residents) return;
     const newId = doc(collection(firestore, 'residents')).id;
     const newResUserIdNumber = Math.max(...residents.map(r => parseInt(r.userId.replace('R-', ''))), 1000) + 1;
 
@@ -140,7 +135,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
-    if (!firestore) return;
+    if (!firestore || !documentRequests) return;
     const newId = doc(collection(firestore, 'documentRequests')).id;
     const newIdNumber = documentRequests.length + 1;
     const newRequest: DocumentRequest = {

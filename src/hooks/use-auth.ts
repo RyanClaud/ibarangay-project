@@ -17,7 +17,7 @@ export function useAuth() {
       return;
     }
 
-    // While the context is loading user data, we are in a loading state.
+    // While the context is loading user data from auth and firestore, we are in a loading state.
     if (isDataLoading) {
       setIsLoading(true);
       return;
