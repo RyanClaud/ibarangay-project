@@ -16,38 +16,43 @@ import type { User } from '@/lib/types';
  * This is crucial for linking Firebase Auth users to their roles and profiles in Firestore.
  * @param firestore - The Firestore instance.
  * @param authUser - The user object from Firebase Authentication.
+ * @returns The user document from Firestore.
  */
-export const ensureUserDocument = async (firestore: any, authUser: AuthUser): Promise<void> => {
-    if (!firestore || !authUser) return;
+export const ensureUserDocument = async (firestore: any, authUser: AuthUser): Promise<User | null> => {
+    if (!firestore || !authUser) return null;
 
     const userRef = doc(firestore, 'users', authUser.uid);
     const userSnap = await getDoc(userRef);
 
-    if (!userSnap.exists()) {
-        console.log(`User document for UID ${authUser.uid} not found. Creating one...`);
-        // Find the matching user from the initial hardcoded data by email
-        const initialUser = initialUsersData.find(u => u.email === authUser.email);
+    if (userSnap.exists()) {
+        return userSnap.data() as User;
+    }
 
-        if (initialUser) {
-            const newUserDoc: User = {
-                ...initialUser,
-                id: authUser.uid, // CRITICAL: Use the actual Auth UID as the document ID
-            };
-            try {
-                await setDoc(userRef, newUserDoc);
-                console.log(`Successfully created user document for ${authUser.email}`);
-            } catch (error) {
-                console.error("Error creating user document:", error);
-            }
-        } else {
-             console.warn(`No initial user data found for email: ${authUser.email}. Cannot create user document.`);
+    console.log(`User document for UID ${authUser.uid} not found. Attempting to create one...`);
+    const initialUser = initialUsersData.find(u => u.email === authUser.email);
+
+    if (initialUser) {
+        const newUserDoc: User = {
+            ...initialUser,
+            id: authUser.uid, // CRITICAL: Use the actual Auth UID as the document ID
+        };
+        try {
+            await setDoc(userRef, newUserDoc);
+            console.log(`Successfully created user document for ${authUser.email}`);
+            return newUserDoc;
+        } catch (error) {
+            console.error("Error creating user document:", error);
+            return null;
         }
+    } else {
+         console.warn(`No initial user data found for email: ${authUser.email}. Cannot create user document.`);
+         return null;
     }
 };
 
 
 export function useAuth() {
-  const { users, isDataLoading: isContextLoading, setCurrentUser, currentUser } = useAppContext();
+  const { setCurrentUser, currentUser } = useAppContext();
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
   const { firestore } = useFirebase();
   const router = useRouter();
@@ -69,45 +74,31 @@ export function useAuth() {
       setCurrentUser(null);
       if (!isLoginPage) {
         router.push('/login');
-      } else {
-        setIsLoading(false); // On login page and logged out, so loading is finished.
       }
+      setIsLoading(false);
       return;
     }
 
     // Auth is settled and we have a firebaseUser.
-    // Now, ensure the corresponding Firestore document exists.
-    ensureUserDocument(firestore, firebaseUser).then(() => {
-        // After ensuring the doc exists, wait for the main user list to load.
-        if (isContextLoading) {
-            setIsLoading(true);
-            return;
-        }
-
-        if (users) {
-            const appUser = users.find(u => u.id === firebaseUser.uid);
-
-            if (appUser) {
-                setCurrentUser(appUser);
-                if (isLoginPage) {
-                    router.push('/dashboard');
-                } else {
-                    setIsLoading(false);
-                }
-            } else {
-                // This state is now less likely but could happen if the user list is stale.
-                console.error(`Auth user ${firebaseUser.uid} has no matching document in Firestore.`);
-                setCurrentUser(null);
-                if (!isLoginPage) {
-                    router.push('/login');
-                } else {
-                    setIsLoading(false);
-                }
+    // Ensure the corresponding Firestore document exists and get it.
+    ensureUserDocument(firestore, firebaseUser).then((appUser) => {
+        if (appUser) {
+            setCurrentUser(appUser);
+            if (isLoginPage) {
+                router.push('/dashboard');
+            }
+        } else {
+            // This case happens if ensureUserDocument fails or returns null
+            console.error(`Auth user ${firebaseUser.uid} has no matching document in Firestore.`);
+            setCurrentUser(null);
+            if (!isLoginPage) {
+                router.push('/login');
             }
         }
+        setIsLoading(false);
     });
 
-  }, [firebaseUser, isAuthLoading, users, isContextLoading, firestore, pathname, router, setCurrentUser]);
+  }, [firebaseUser, isAuthLoading, firestore, pathname, router, setCurrentUser]);
   
   return { user: currentUser, isLoading };
 }

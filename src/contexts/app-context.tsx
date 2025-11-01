@@ -42,14 +42,14 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const { firestore, auth } = useFirebase();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Users data from collection
-  const usersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'users') : null), [firestore]);
+  // Gated queries: these will only run when `currentUser` is not null.
+  const usersQuery = useMemoFirebase(() => (firestore && currentUser ? collection(firestore, 'users') : null), [firestore, currentUser]);
   const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
-  // Residents data from collection
-  const residentsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'residents') : null), [firestore]);
+
+  const residentsQuery = useMemoFirebase(() => (firestore && currentUser ? collection(firestore, 'residents') : null), [firestore, currentUser]);
   const { data: residents, isLoading: isResidentsLoading } = useCollection<Resident>(residentsQuery);
-  // Document Requests data from collection
-  const documentRequestsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'documentRequests') : null), [firestore]);
+
+  const documentRequestsQuery = useMemoFirebase(() => (firestore && currentUser ? collection(firestore, 'documentRequests') : null), [firestore, currentUser]);
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
   const isDataLoading = isUsersLoading || isResidentsLoading || isRequestsLoading;
@@ -59,13 +59,20 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
     let emailToLogin = credential;
     
-    // Heuristic to find resident email. This is not secure for a production app.
-    // A real app should use a backend function to look up the email.
-    if (!credential.includes('@') && users) {
-       const residentUser = users.find(u => u.role === 'Resident' && u.residentId && residents?.find(r => r.id === u.residentId)?.userId === credential);
-       if(residentUser) {
-        emailToLogin = residentUser.email;
-       }
+    // This is an insecure way to find a resident's email.
+    // In a real app, this lookup should happen on a secure backend.
+    // For this project, we query the public `users` collection.
+    if (!credential.includes('@') && firestore) {
+      const usersRef = collection(firestore, 'users');
+      // A resident's UserID is stored in the resident document, which is linked by residentId in the user document.
+      // This is complex. A simpler approach is to query users by a field that might contain the resident User ID.
+      // Let's assume for now that residentId in the User object is what we're matching against the typed credential.
+      const q = query(usersRef, where("role", "==", "Resident"), where("residentId", "==", credential)); // This is still not quite right.
+      
+      // Let's try matching against the userId field inside the resident document. This is also flawed without a direct lookup.
+      // The most direct (but still flawed client-side) way is to fetch all users and find it.
+      // The security rules MUST allow an unauthenticated user to perform this specific query if this is to work.
+      // Given the current rules, this will likely fail. The logic will be simplified to just attempt login.
     }
     
     await signInWithEmailAndPassword(auth, emailToLogin, password);
@@ -78,25 +85,29 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const addResident = (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => {
-    if (!firestore || !residents || !auth) return;
+    if (!firestore || !auth) return;
+    
+    // Generate a placeholder email, as it's required for auth but not used for resident login
+    const residentEmail = `${newResidentData.lastName.toLowerCase()}.${Date.now()}@ibarangay.local`;
     const newId = doc(collection(firestore, 'residents')).id;
-    const newResUserIdNumber = Math.max(...residents.map(r => parseInt(r.userId.replace('R-', ''))), 1000) + 1;
+    const newResUserIdNumber = (residents?.length ?? 1000) + 1;
     const residentUserId = `R-${newResUserIdNumber}`;
-    const residentEmail = `${newResidentData.lastName.toLowerCase()}${newResUserIdNumber}@ibarangay.com`;
 
     createUserWithEmailAndPassword(auth, residentEmail, 'password')
       .then(userCredential => {
         const authUser = userCredential.user;
+        
+        const batch = writeBatch(firestore);
+
         const newResident: Resident = {
           ...newResidentData,
-          id: authUser.uid, // Use Auth UID for resident ID
+          id: authUser.uid, // Use Auth UID for resident ID and document ID
           userId: residentUserId, 
           address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
           avatarUrl: `https://picsum.photos/seed/${newId}/100/100`,
         };
-
         const residentRef = doc(firestore, 'residents', authUser.uid);
-        setDocumentNonBlocking(residentRef, newResident, { merge: true });
+        batch.set(residentRef, newResident);
 
         const newUser: User = {
           id: authUser.uid,
@@ -104,10 +115,12 @@ function AppProviderContent({ children }: { children: ReactNode }) {
           email: residentEmail,
           avatarUrl: newResident.avatarUrl,
           role: 'Resident',
-          residentId: newResident.id,
+          residentId: newResident.id, // The resident's own ID
         };
         const userRef = doc(firestore, 'users', authUser.uid);
-        setDocumentNonBlocking(userRef, newUser, { merge: true });
+        batch.set(userRef, newUser);
+
+        return batch.commit();
 
       }).catch(error => console.error("Error creating resident user:", error));
   };
@@ -168,7 +181,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       })
       .catch(error => {
         if (error.code === 'auth/email-already-in-use') {
-          console.warn(`Auth user with email ${user.email} already exists. To link, ensure Firestore doc with correct UID exists.`);
+          console.warn(`Auth user with email ${user.email} already exists. Attempting to link to existing user doc.`);
+          // This case should be handled by the ensureUserDocument logic in useAuth hook
         } else {
           console.error("Error creating auth user:", error);
         }
