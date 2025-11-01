@@ -28,7 +28,7 @@ import { useRouter } from "next/navigation";
 import { useAppContext } from "@/contexts/app-context";
 
 export function ResidentClientPage() {
-  const { residents, addResident, updateResident } = useAppContext();
+  const { residents, addResident, updateResident, deleteResident } = useAppContext();
   const [filter, setFilter] = React.useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [residentToEdit, setResidentToEdit] = React.useState<Resident | null>(null);
@@ -45,7 +45,7 @@ export function ResidentClientPage() {
     return b.id.localeCompare(a.id);
   });
 
-  const handleAddResident = (newResident: Omit<Resident, 'id' | 'avatarUrl' | 'userId' | 'address'>) => {
+  const handleAddResident = (newResident: Omit<Resident, 'id' | 'avatarUrl' | 'userId' | 'address'> & {email: string}) => {
     addResident(newResident);
   };
 
@@ -55,8 +55,7 @@ export function ResidentClientPage() {
   };
 
   const handleDeleteResident = (residentId: string) => {
-    // A 'deleteResident' function should be called from context here
-    console.log("Delete resident not implemented yet");
+    deleteResident(residentId);
     setResidentToDelete(null);
   };
   
