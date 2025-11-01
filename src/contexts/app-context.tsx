@@ -10,6 +10,7 @@ import {
   addDocumentNonBlocking,
   updateDocumentNonBlocking,
   setDocumentNonBlocking,
+  deleteDocumentNonBlocking,
 } from '@/firebase';
 import { collection, doc, where, query } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -22,6 +23,7 @@ interface AppContextType {
   residents: Resident[];
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => void;
   updateResident: (resident: Resident) => void;
+  deleteResident: (residentId: string) => void;
   documentRequests: DocumentRequest[];
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
@@ -40,20 +42,22 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const { firestore, isUserLoading: isAuthLoading } = useFirebase();
   const [currentUser, setCurrentUser] = useState<User | null>(defaultUser || null);
 
-  // Firestore collections
-  const residentsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'residents') : null, [firestore]);
+  // Firestore collections - these will only run if currentUser is not null
+  const residentsQuery = useMemoFirebase(() => (firestore && currentUser) ? collection(firestore, 'residents') : null, [firestore, currentUser]);
   const { data: residents = [], isLoading: isResidentsLoading } = useCollection<Resident>(residentsQuery);
 
-  const documentRequestsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'documentRequests') : null, [firestore]);
+  const documentRequestsQuery = useMemoFirebase(() => (firestore && currentUser) ? collection(firestore, 'documentRequests') : null, [firestore, currentUser]);
   const { data: documentRequests = [], isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
-  const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+  const usersQuery = useMemoFirebase(() => (firestore && currentUser) ? collection(firestore, 'users') : null, [firestore, currentUser]);
   const { data: users = [], isLoading: isUsersLoading } = useCollection<User>(usersQuery);
 
   const isDataLoading = isAuthLoading || isResidentsLoading || isRequestsLoading || isUsersLoading;
 
   const login = (credential: string) => {
-    const user = findUserByCredential(credential, users, residents);
+    // We use initialUsers here because the full 'users' collection might not be available yet.
+    // The security rules only allow logged-in users to fetch the user list.
+    const user = findUserByCredential(credential, [...initialUsers, ...users]);
     if (user) {
       setCurrentUser(user);
     }
@@ -81,16 +85,15 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     setDocumentNonBlocking(residentRef, newResident, { merge: true });
 
     // Also create a user account for the resident
-     const newUserId = doc(collection(firestore, 'users')).id;
      const newUser: User = {
-       id: newUserId,
+       id: newResident.id, // Use resident ID for user ID for simplicity in this context
        name: `${newResident.firstName} ${newResident.lastName}`,
        email: `${newResident.lastName.toLowerCase()}${newResUserIdNumber}@ibarangay.com`,
        avatarUrl: newResident.avatarUrl,
        role: 'Resident',
        residentId: newResident.id,
      };
-     const userRef = doc(firestore, 'users', newUserId);
+     const userRef = doc(firestore, 'users', newUser.id);
      setDocumentNonBlocking(userRef, newUser, { merge: true });
   };
 
@@ -98,6 +101,12 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!firestore) return;
     const residentRef = doc(firestore, 'residents', updatedResident.id);
     updateDocumentNonBlocking(residentRef, updatedResident);
+  };
+
+  const deleteResident = (residentId: string) => {
+    if (!firestore) return;
+    const residentRef = doc(firestore, 'residents', residentId);
+    deleteDocumentNonBlocking(residentRef);
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
@@ -140,8 +149,9 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const deleteUser = (userId: string) => {
-    // In a real app, you would use deleteDocumentNonBlocking
-    console.log("Delete user not implemented with Firestore yet");
+    if (!firestore) return;
+    const userRef = doc(firestore, 'users', userId);
+    deleteDocumentNonBlocking(userRef);
   };
 
   return (
@@ -153,6 +163,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
       residents,
       addResident,
       updateResident,
+      deleteResident,
       documentRequests,
       addDocumentRequest,
       updateDocumentRequestStatus,

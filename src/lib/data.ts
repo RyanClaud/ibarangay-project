@@ -10,24 +10,11 @@ export const users: User[] = [
   { id: 'USR004', name: 'Jose Rizal', email: 'treasurer@ibarangay.com', avatarUrl: 'https://picsum.photos/seed/4/100/100', role: 'Treasurer' },
 ];
 
-export const findUserByCredential = (credential: string, allUsers: User[], allResidents: Resident[]): User | undefined => {
-  if (credential.startsWith('R-')) {
-    const resident = allResidents.find(r => r.userId === credential);
-    if (!resident) return undefined;
-    
-    let user = allUsers.find(u => u.residentId === resident.id);
-    if (!user) {
-      // This part is for mock-only, in a real app user accounts would be formally created
-      user = {
-        id: `USR-${resident.id}`,
-        name: `${resident.firstName} ${resident.lastName}`,
-        email: `${resident.lastName.toLowerCase()}@ibarangay.com`,
-        avatarUrl: resident.avatarUrl,
-        role: 'Resident',
-        residentId: resident.id,
-      };
-    }
-    return user;
-  }
-  return allUsers.find(u => u.email.toLowerCase() === credential.toLowerCase());
+// This function now only needs to check against staff users for initial login,
+// or against the already-loaded list of all users.
+export const findUserByCredential = (credential: string, allUsers: User[]): User | undefined => {
+  return allUsers.find(u => 
+    u.email.toLowerCase() === credential.toLowerCase() || 
+    (u.role === 'Resident' && u.userId?.toLowerCase() === credential.toLowerCase())
+  );
 }
