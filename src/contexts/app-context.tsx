@@ -116,7 +116,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         return; // Success
     } catch (error: any) {
         // If it fails with "invalid-credential", it might be a resident User ID.
-        if (error.code === 'auth/invalid-credential') {
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email') {
             console.log("Initial email sign-in failed, trying resident User ID lookup...");
             const q = query(collection(firestore, "residents"), where("userId", "==", credential));
             const querySnapshot = await getDocs(q);
@@ -211,11 +211,13 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
-    if (!firestore || !documentRequests) return;
+    if (!firestore || !documentRequests || !currentUser?.residentId) return;
+
     const newId = doc(collection(firestore, 'documentRequests')).id;
     const newIdNumber = (documentRequests?.length ?? 0) + 1;
     const newRequest: DocumentRequest = {
         ...request,
+        residentId: currentUser.residentId,
         id: newId,
         requestDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
         status: 'Pending',

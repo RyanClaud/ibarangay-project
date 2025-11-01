@@ -11,11 +11,11 @@ import type { User } from '@/lib/types';
 
 /**
  * Ensures a user document exists in Firestore for a given authenticated user.
- * If the document doesn't exist, it creates one.
- * This is crucial for linking Firebase Auth users to their roles and profiles in Firestore.
+ * If the document doesn't exist, it returns null, signaling a potential deleted user.
+ * This function NO LONGER creates user documents on the fly during login.
  * @param firestore - The Firestore instance.
  * @param authUser - The user object from Firebase Authentication.
- * @returns The user document from Firestore.
+ * @returns The user document from Firestore or null if it doesn't exist.
  */
 export const ensureUserDocument = async (firestore: any, authUser: AuthUser): Promise<User | null> => {
     if (!firestore || !authUser) return null;
@@ -27,25 +27,9 @@ export const ensureUserDocument = async (firestore: any, authUser: AuthUser): Pr
         return userSnap.data() as User;
     }
 
-    // If no document exists, create a default one.
-    // This handles users created via the UI or other methods who don't have a pre-defined static entry.
-    const newUserDoc: User = {
-        id: authUser.uid, // CRITICAL: Use the actual Auth UID as the document ID
-        email: authUser.email || '',
-        name: authUser.displayName || authUser.email?.split('@')[0] || 'New User',
-        avatarUrl: authUser.photoURL || `https://picsum.photos/seed/${authUser.uid}/100/100`,
-        role: 'Resident', // Default to the most restrictive role.
-        residentId: authUser.uid, // Assume the residentId is the same as the userId for new residents.
-    };
-
-    try {
-        await setDoc(userRef, newUserDoc);
-        console.log(`Successfully created default user document for ${authUser.email}`);
-        return newUserDoc;
-    } catch (error) {
-        console.error("Error creating user document:", error);
-        return null;
-    }
+    // If the user document does not exist, return null.
+    // This will cause the useAuth hook to treat the user as logged out.
+    return null;
 };
 
 
@@ -86,7 +70,8 @@ export function useAuth() {
                 router.push('/dashboard');
             }
         } else {
-            // This case happens if ensureUserDocument fails or returns null
+            // This case happens if ensureUserDocument returns null (e.g., deleted user).
+            console.error(`Auth user ${firebaseUser.uid} has no matching document in Firestore. Forcing logout.`);
             setCurrentUser(null);
             if (!isLoginPage) {
                 router.push('/login');
