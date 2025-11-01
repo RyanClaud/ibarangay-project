@@ -50,6 +50,7 @@ export function OfficialLogo({ className }: { className?: string }) {
             <path d="M850 150 L880 180 L850 210 L820 180 Z"/>
             <path d="M150 850 L180 820 L150 790 L120 820 Z"/>
             <path d="M850 850 L880 820 L850 790 L820 820 Z"/>
+        _
         </g>
 
         <text x="500" y="940" textAnchor="middle" fill="white" fontSize="50" fontWeight="bold">OPISYAL NA SAGISAG</text>
