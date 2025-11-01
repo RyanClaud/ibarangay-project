@@ -14,7 +14,7 @@ import {
 } from '@/firebase';
 import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs, limit, updateDoc, deleteDoc } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword, signOut } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -40,6 +40,10 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+// Store admin credentials in memory ONLY. This is not secure for production but works for this dev environment.
+let adminCredentials: { email: string; password: string } | null = null;
+
 
 function AppProviderContent({ children }: { children: ReactNode }) {
   const { firestore, auth, storage } = useFirebase();
@@ -115,14 +119,29 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
 
     const email = credential;
-    // Attempt email/password sign-in directly
+    // Store credentials in memory for re-login if admin creates a user
+    adminCredentials = { email, password };
     await signInWithEmailAndPassword(auth, email, password);
   };
+  
+  const reSignInAdmin = async () => {
+    if (!auth || !adminCredentials) return;
+    try {
+        await signInWithEmailAndPassword(auth, adminCredentials.email, adminCredentials.password);
+    } catch (error) {
+        console.error("Failed to re-sign in admin", error);
+        // If re-sign-in fails, clear credentials and log out completely
+        adminCredentials = null;
+        logout();
+    }
+  };
+
 
   const logout = () => {
     if (!auth) return;
     initiateSignOut(auth);
     setCurrentUser(null);
+    adminCredentials = null; // Clear credentials on logout
   };
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
@@ -184,11 +203,22 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         batch.set(userRef, newUser);
 
         await batch.commit();
+
+        // After creating the user, sign them out and sign the admin back in.
+        if (auth.currentUser?.uid === authUser.uid) {
+            await signOut(auth);
+            await reSignInAdmin();
+        }
+
     } catch (error: any) {
       console.error("Error creating resident:", error);
       if (error.code === 'auth/email-already-in-use') {
+          // If the creation failed, re-sign in the admin immediately.
+          await reSignInAdmin();
           throw new Error("An account for this email already exists.");
       }
+      // Re-sign-in admin on other errors too
+      await reSignInAdmin();
       throw new Error("Failed to create resident account.");
     }
   };
@@ -318,10 +348,19 @@ function AppProviderContent({ children }: { children: ReactNode }) {
         };
         const userRef = doc(firestore, 'users', authUser.uid);
         await setDoc(userRef, newUser, { merge: true });
+
+        // After creating the user, sign them out and sign the admin back in.
+        if (auth.currentUser?.uid === authUser.uid) {
+            await signOut(auth);
+            await reSignInAdmin();
+        }
+
     } catch (error: any) {
         if (error.code === 'auth/email-already-in-use') {
+            await reSignInAdmin();
             throw new Error("An account for this email already exists.");
         }
+        await reSignInAdmin();
         throw error;
     }
   };

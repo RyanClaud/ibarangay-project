@@ -80,7 +80,7 @@ service cloud.firestore {
       // A resident can get their own profile. Staff can get any profile.
       allow get: if isStaff() || isOwner(residentId);
       // Staff can list all residents. Unauthenticated users can query for a single resident (for login).
-      allow list: if isStaff() || (request.auth == null && request.query.limit == 1);
+      allow list: if isStaff();
       allow create: if true;
       allow update: if isStaff() || isOwner(residentId);
       allow delete: if isStaff();
