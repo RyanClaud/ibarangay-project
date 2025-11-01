@@ -110,31 +110,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
 
   const login = async (credential: string, password: string) => {
     if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
-
-    try {
-        // First, try to sign in directly, assuming the credential is an email.
-        await signInWithEmailAndPassword(auth, credential, password);
-        return; // Success
-    } catch (error: any) {
-        // If it fails with "invalid-credential", it might be a resident User ID.
-        if (error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email') {
-            console.log("Initial email sign-in failed, trying resident User ID lookup...");
-            
-            // This is the new, more secure logic.
-            // We directly get the document if the ID matches.
-            const residentRef = doc(firestore, "residents", credential);
-            const residentSnap = await getDoc(residentRef);
-
-            if (residentSnap.exists()) {
-                const residentDoc = residentSnap.data() as Resident;
-                // Now, try signing in with the fetched email.
-                await signInWithEmailAndPassword(auth, residentDoc.email, password);
-                return; // Success
-            }
-        }
-        // If it's another error or the lookup fails, re-throw the original error.
-        throw error;
-    }
+    // Simplified: Only attempt to sign in with email.
+    await signInWithEmailAndPassword(auth, credential, password);
   };
 
   const logout = () => {
@@ -199,7 +176,7 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     const userRef = doc(firestore, 'users', updatedResident.id);
     updateDocumentNonBlocking(userRef, { 
       name: `${updatedResident.firstName} ${updatedResident.lastName}`,
-      email: updatedResident.email 
+      // We don't update email here as it's tied to auth.
     });
   };
 

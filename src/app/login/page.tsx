@@ -89,7 +89,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="credential">User ID / Email</Label>
+              <Label htmlFor="credential">Email</Label>
               <Input 
                 id="credential" 
                 placeholder="e.g., admin@ibarangay.com" 

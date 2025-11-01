@@ -77,9 +77,9 @@ service cloud.firestore {
      * @description Rules for the /residents/{residentId} collection.
      */
     match /residents/{residentId} {
-      // A resident can get their own profile. Staff can get any profile. Anyone can get a single document for login checks.
-      allow get: if true;
-      // Staff can list all residents. Residents are not allowed to list all residents.
+      // A resident can get their own profile. Staff can get any profile.
+      allow get: if isStaff() || isOwner(residentId);
+      // Staff can list all residents.
       allow list: if isStaff();
       allow create: if true;
       allow update: if isStaff() || isOwner(residentId);
