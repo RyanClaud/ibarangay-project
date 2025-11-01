@@ -74,7 +74,7 @@ service cloud.firestore {
      * @allow (delete) Admins can delete users.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId);
       allow list: if isSignedIn();
       allow create: if isOwner(userId);
       allow update: if isAdmin() || isOwner(userId);
