@@ -1,9 +1,6 @@
-import { documentRequests } from "@/lib/data";
 import { PaymentsClientPage } from "@/components/payments/payments-client-page";
 
 export default function PaymentsPage() {
-  const pendingPayments = documentRequests.filter(req => req.status === 'Approved');
-
   return (
     <div className="space-y-6">
       <div>
@@ -12,7 +9,7 @@ export default function PaymentsPage() {
           Confirm payments for approved document requests.
         </p>
       </div>
-      <PaymentsClientPage data={pendingPayments} />
+      <PaymentsClientPage />
     </div>
   );
 }

@@ -1,8 +1,18 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { User, Resident, DocumentRequest, DocumentRequestStatus, Role } from '@/lib/types';
-import { documentRequests as initialDocumentRequests, residents as initialResidents, findUserByCredential, users as initialUsers } from '@/lib/data';
+import { users as initialUsers, findUserByCredential } from '@/lib/data';
+import {
+  useCollection,
+  useFirebase,
+  useMemoFirebase,
+  addDocumentNonBlocking,
+  updateDocumentNonBlocking,
+  setDocumentNonBlocking,
+} from '@/firebase';
+import { collection, doc, where, query } from 'firebase/firestore';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 interface AppContextType {
   currentUser: User | null;
@@ -10,29 +20,37 @@ interface AppContextType {
   login: (credential: string) => User | undefined;
   logout: () => void;
   residents: Resident[];
-  setResidents: (residents: Resident[]) => void;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => void;
   updateResident: (resident: Resident) => void;
   documentRequests: DocumentRequest[];
-  setDocumentRequests: (requests: DocumentRequest[]) => void;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
   users: User[];
   addUser: (user: Omit<User, 'id' | 'avatarUrl'>) => void;
   updateUser: (user: User) => void;
   deleteUser: (userId: string) => void;
+  isDataLoading: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Find the admin user from the mock data to use as the default.
 const defaultUser = initialUsers.find(u => u.role === 'Admin');
 
-export function AppProvider({ children }: { children: ReactNode }) {
+function AppProviderContent({ children }: { children: ReactNode }) {
+  const { firestore, isUserLoading: isAuthLoading } = useFirebase();
   const [currentUser, setCurrentUser] = useState<User | null>(defaultUser || null);
-  const [residents, setResidents] = useState<Resident[]>(initialResidents);
-  const [documentRequests, setDocumentRequests] = useState<DocumentRequest[]>(initialDocumentRequests);
-  const [users, setUsers] = useState<User[]>(initialUsers);
+
+  // Firestore collections
+  const residentsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'residents') : null, [firestore]);
+  const { data: residents = [], isLoading: isResidentsLoading } = useCollection<Resident>(residentsQuery);
+
+  const documentRequestsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'documentRequests') : null, [firestore]);
+  const { data: documentRequests = [], isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
+
+  const usersQuery = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+  const { data: users = [], isLoading: isUsersLoading } = useCollection<User>(usersQuery);
+
+  const isDataLoading = isAuthLoading || isResidentsLoading || isRequestsLoading || isUsersLoading;
 
   const login = (credential: string) => {
     const user = findUserByCredential(credential, users, residents);
@@ -47,72 +65,83 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const addResident = (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => {
-    const newResIdNumber = Math.max(...residents.map(r => parseInt(r.id.replace('RES', ''))), 0) + 1;
+    if (!firestore) return;
+    const newId = doc(collection(firestore, 'residents')).id;
     const newResUserIdNumber = Math.max(...residents.map(r => parseInt(r.userId.replace('R-', ''))), 1000) + 1;
 
     const newResident: Resident = {
       ...newResidentData,
-      id: `RES${String(newResIdNumber).padStart(3, '0')}`,
+      id: newId,
       userId: `R-${newResUserIdNumber}`,
       address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
-      avatarUrl: `https://picsum.photos/seed/${newResIdNumber}/100/100`,
+      avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
     };
 
-    const newUserIdNumber = Math.max(...users.map(u => parseInt(u.id.replace('USR', ''))), 0) + 1;
-    const newUser: User = {
-      id: `USR${String(newUserIdNumber).padStart(3, '0')}`,
-      name: `${newResident.firstName} ${newResident.lastName}`,
-      email: `${newResident.lastName.toLowerCase()}${newResIdNumber}@ibarangay.com`,
-      avatarUrl: newResident.avatarUrl,
-      role: 'Resident',
-      residentId: newResident.id,
-    };
-    
-    setResidents(prev => [newResident, ...prev]);
-    setUsers(prev => [newUser, ...prev]);
+    const residentRef = doc(firestore, 'residents', newId);
+    setDocumentNonBlocking(residentRef, newResident, { merge: true });
+
+    // Also create a user account for the resident
+     const newUserId = doc(collection(firestore, 'users')).id;
+     const newUser: User = {
+       id: newUserId,
+       name: `${newResident.firstName} ${newResident.lastName}`,
+       email: `${newResident.lastName.toLowerCase()}${newResUserIdNumber}@ibarangay.com`,
+       avatarUrl: newResident.avatarUrl,
+       role: 'Resident',
+       residentId: newResident.id,
+     };
+     const userRef = doc(firestore, 'users', newUserId);
+     setDocumentNonBlocking(userRef, newUser, { merge: true });
   };
 
   const updateResident = (updatedResident: Resident) => {
-    setResidents(prev => prev.map(r => r.id === updatedResident.id ? updatedResident : r));
+    if (!firestore) return;
+    const residentRef = doc(firestore, 'residents', updatedResident.id);
+    updateDocumentNonBlocking(residentRef, updatedResident);
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
-    const newIdNumber = Math.max(...documentRequests.map(r => parseInt(r.id.replace('DOC', ''))), 0) + 1;
+    if (!firestore) return;
+    const newId = doc(collection(firestore, 'documentRequests')).id;
+    const newIdNumber = documentRequests.length + 1;
     const newRequest: DocumentRequest = {
         ...request,
-        id: `DOC${String(newIdNumber).padStart(3, '0')}`,
+        id: newId,
         requestDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
         status: 'Pending',
         trackingNumber: `IBGY-${new Date().getFullYear().toString().slice(2)}${(new Date().getMonth() + 1).toString().padStart(2, '0')}${new Date().getDate().toString().padStart(2, '0')}${String(newIdNumber).padStart(3, '0')}`,
     };
-    setDocumentRequests(prev => [newRequest, ...prev]);
+    const requestRef = doc(firestore, 'documentRequests', newId);
+    setDocumentNonBlocking(requestRef, newRequest, { merge: true });
   };
 
   const updateDocumentRequestStatus = (id: string, status: DocumentRequestStatus) => {
-    setDocumentRequests(prev => 
-      prev.map(req => 
-        req.id === id ? { ...req, status } : req
-      )
-    );
+    if (!firestore) return;
+    const requestRef = doc(firestore, 'documentRequests', id);
+    updateDocumentNonBlocking(requestRef, { status });
   };
 
   const addUser = (user: Omit<User, 'id' | 'avatarUrl'>) => {
-    const newIdNumber = Math.max(...users.map(u => parseInt(u.id.replace('USR', ''))), 0) + 1;
+    if (!firestore) return;
+    const newId = doc(collection(firestore, 'users')).id;
     const newUser: User = {
       ...user,
-      id: `USR${String(newIdNumber).padStart(3, '0')}`,
-      avatarUrl: `https://picsum.photos/seed/${newIdNumber + 10}/100/100`,
+      id: newId,
+      avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
     };
-    setUsers(prev => [newUser, ...prev]);
+    const userRef = doc(firestore, 'users', newId);
+    setDocumentNonBlocking(userRef, newUser, { merge: true });
   };
 
   const updateUser = (updatedUser: User) => {
-    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-    setResidents(prev => prev.map(r => r.id === updatedUser.residentId ? { ...r, firstName: updatedUser.name.split(' ')[0], lastName: updatedUser.name.split(' ')[1] || '' } : r));
+    if (!firestore) return;
+    const userRef = doc(firestore, 'users', updatedUser.id);
+    updateDocumentNonBlocking(userRef, updatedUser);
   };
 
   const deleteUser = (userId: string) => {
-    setUsers(prev => prev.filter(u => u.id !== userId));
+    // In a real app, you would use deleteDocumentNonBlocking
+    console.log("Delete user not implemented with Firestore yet");
   };
 
   return (
@@ -122,22 +151,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       residents,
-      setResidents,
       addResident,
       updateResident,
       documentRequests,
-      setDocumentRequests,
       addDocumentRequest,
       updateDocumentRequestStatus,
       users,
       addUser,
       updateUser,
       deleteUser,
+      isDataLoading,
     }}>
       {children}
     </AppContext.Provider>
   );
 }
+
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  return (
+    <FirebaseClientProvider>
+      <AppProviderContent>{children}</AppProviderContent>
+    </FirebaseClientProvider>
+  );
+}
+
 
 export function useAppContext() {
   const context = useContext(AppContext);

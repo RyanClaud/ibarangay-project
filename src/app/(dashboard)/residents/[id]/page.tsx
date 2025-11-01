@@ -1,14 +1,29 @@
+'use client';
+
 import { residents, documentRequests } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { RequestHistory } from "@/components/requests/request-history";
-import { notFound } from "next/navigation";
-import { Cake, Home, User as UserIcon } from "lucide-react";
+import { notFound, useParams } from "next/navigation";
+import { Cake, Home, User as UserIcon, Loader2 } from "lucide-react";
+import { useAppContext } from "@/contexts/app-context";
+import { useMemo } from "react";
 
-export default function ResidentProfilePage({ params }: { params: { id: string } }) {
-  const resident = residents.find(r => r.id === params.id);
-  const requests = documentRequests.filter(req => req.residentId === params.id);
+export default function ResidentProfilePage() {
+  const { id } = useParams();
+  const { residents, documentRequests, isDataLoading } = useAppContext();
+
+  const resident = useMemo(() => (residents || []).find(r => r.id === id), [residents, id]);
+  const requests = useMemo(() => (documentRequests || []).filter(req => req.residentId === id), [documentRequests, id]);
+
+  if (isDataLoading) {
+    return (
+        <div className="flex h-full w-full items-center justify-center p-8">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+    );
+  }
 
   if (!resident) {
     return notFound();

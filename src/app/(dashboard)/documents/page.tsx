@@ -1,4 +1,3 @@
-import { documentRequests } from "@/lib/data";
 import { DocumentRequestClientPage } from "@/components/documents/document-request-client-page";
 
 export default function DocumentsPage() {
@@ -10,7 +9,7 @@ export default function DocumentsPage() {
           Review, approve, or reject document requests from residents.
         </p>
       </div>
-      <DocumentRequestClientPage data={documentRequests} />
+      <DocumentRequestClientPage />
     </div>
   )
 }

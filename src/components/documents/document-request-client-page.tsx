@@ -38,7 +38,7 @@ const statusColors: Record<DocumentRequestStatus, string> = {
 
 const TABS: DocumentRequestStatus[] = ["Pending", "Approved", "Paid", "Released", "Rejected"];
 
-export function DocumentRequestClientPage({ data }: { data: DocumentRequest[] }) {
+export function DocumentRequestClientPage() {
   const { documentRequests, updateDocumentRequestStatus, currentUser } = useAppContext();
   const [filter, setFilter] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<DocumentRequestStatus | 'All'>('Pending');
@@ -56,10 +56,10 @@ export function DocumentRequestClientPage({ data }: { data: DocumentRequest[] })
     router.push(`/documents/certificate/${requestId}`);
   };
 
-  const filteredData = documentRequests.filter(
+  const filteredData = (documentRequests || []).filter(
     (request) =>
       (request.residentName.toLowerCase().includes(filter.toLowerCase()) ||
-      request.trackingNumber.toLowerCase().includes(filter.toLowerCase())) &&
+      (request.trackingNumber && request.trackingNumber.toLowerCase().includes(filter.toLowerCase()))) &&
       (activeTab === 'All' || request.status === activeTab)
   ).sort((a,b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
 

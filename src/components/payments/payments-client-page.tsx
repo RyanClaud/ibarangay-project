@@ -16,15 +16,15 @@ import type { DocumentRequest } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
 import { useAppContext } from "@/contexts/app-context";
 
-export function PaymentsClientPage({ data: initialData }: { data: DocumentRequest[] }) {
+export function PaymentsClientPage() {
   const { documentRequests, updateDocumentRequestStatus } = useAppContext();
   const [filter, setFilter] = React.useState("");
 
-  const filteredData = documentRequests.filter(
+  const filteredData = (documentRequests || []).filter(
     (request) =>
       request.status === 'Approved' &&
       (request.residentName.toLowerCase().includes(filter.toLowerCase()) ||
-      request.trackingNumber.toLowerCase().includes(filter.toLowerCase()))
+      (request.trackingNumber && request.trackingNumber.toLowerCase().includes(filter.toLowerCase())))
   );
 
   const handleConfirmPayment = (requestId: string) => {

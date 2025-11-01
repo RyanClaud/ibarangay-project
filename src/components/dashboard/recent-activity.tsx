@@ -1,9 +1,12 @@
-import { documentRequests } from "@/lib/data";
+'use client';
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { DocumentRequestStatus } from "@/lib/types";
+import { useAppContext } from "@/contexts/app-context";
+import { useMemo } from "react";
 
 const statusColors: Record<DocumentRequestStatus, string> = {
   Pending: "bg-amber-500",
@@ -14,7 +17,13 @@ const statusColors: Record<DocumentRequestStatus, string> = {
 };
 
 export function RecentActivity() {
-  const recentRequests = documentRequests.slice(0, 5);
+  const { documentRequests } = useAppContext();
+
+  const recentRequests = useMemo(() => {
+    return (documentRequests || [])
+      .sort((a,b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime())
+      .slice(0, 5);
+  }, [documentRequests]);
 
   return (
     <Card className="fade-in transition-all hover:shadow-lg h-full">

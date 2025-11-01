@@ -27,7 +27,7 @@ import { DeleteResidentDialog } from "./delete-resident-dialog";
 import { useRouter } from "next/navigation";
 import { useAppContext } from "@/contexts/app-context";
 
-export function ResidentClientPage({ data: initialData }: { data: Resident[] }) {
+export function ResidentClientPage() {
   const { residents, addResident, updateResident } = useAppContext();
   const [filter, setFilter] = React.useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
@@ -35,16 +35,14 @@ export function ResidentClientPage({ data: initialData }: { data: Resident[] }) 
   const [residentToDelete, setResidentToDelete] = React.useState<Resident | null>(null);
   const router = useRouter();
 
-  const filteredData = residents.filter(
+  const filteredData = (residents || []).filter(
     (resident) =>
       resident.firstName.toLowerCase().includes(filter.toLowerCase()) ||
       resident.lastName.toLowerCase().includes(filter.toLowerCase()) ||
       resident.userId.toLowerCase().includes(filter.toLowerCase())
   ).sort((a, b) => {
-    // Sort by id in descending order to show newest first
-    const idA = parseInt(a.id.replace('RES', ''));
-    const idB = parseInt(b.id.replace('RES', ''));
-    return idB - idA;
+    // Assuming IDs are sortable strings like 'RES001', 'RES002'
+    return b.id.localeCompare(a.id);
   });
 
   const handleAddResident = (newResident: Omit<Resident, 'id' | 'avatarUrl' | 'userId' | 'address'>) => {
@@ -58,6 +56,7 @@ export function ResidentClientPage({ data: initialData }: { data: Resident[] }) 
 
   const handleDeleteResident = (residentId: string) => {
     // A 'deleteResident' function should be called from context here
+    console.log("Delete resident not implemented yet");
     setResidentToDelete(null);
   };
   
