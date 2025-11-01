@@ -21,6 +21,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription as FormHelperText,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -104,6 +105,9 @@ export function EditUserDialog({ isOpen, onClose, onUpdateUser, user }: EditUser
                   <FormControl>
                     <Input type="email" placeholder="juan.cruz@example.com" {...field} disabled />
                   </FormControl>
+                   <FormHelperText>
+                    User emails cannot be changed for security reasons. To change an email, please delete and re-create the user.
+                  </FormHelperText>
                   <FormMessage />
                 </FormItem>
               )}
