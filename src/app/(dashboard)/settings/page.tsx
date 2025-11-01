@@ -17,7 +17,7 @@ import { Loader2 } from "lucide-react";
 import Image from "next/image";
 
 export default function SettingsPage() {
-  const { firestore, storage } = useFirebase();
+  const { firestore, storage, areServicesAvailable } = useFirebase();
   const [barangayName, setBarangayName] = useState("Barangay Mina De Oro");
   const [address, setAddress] = useState("Bongabong, Oriental Mindoro, Philippines");
   const [sealLogoUrl, setSealLogoUrl] = useState<string | null>(null);
@@ -44,8 +44,10 @@ export default function SettingsPage() {
         setIsLoading(false);
       }
     };
-    fetchConfig();
-  }, [firestore]);
+    if (areServicesAvailable) {
+        fetchConfig();
+    }
+  }, [firestore, areServicesAvailable]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -143,7 +145,7 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button onClick={handleSaveChanges} disabled={isSaving}>
+                  <Button onClick={handleSaveChanges} disabled={isSaving || !areServicesAvailable}>
                     {isSaving && <Loader2 className="mr-2 animate-spin" />}
                     {isSaving ? 'Saving...' : 'Save Changes'}
                   </Button>
