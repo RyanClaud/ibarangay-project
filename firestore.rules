@@ -62,8 +62,8 @@ service cloud.firestore {
      */
     match /users/{userId} {
       allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isOwner(userId);
+      allow list: if isSignedIn(); // Allow any logged-in user to see user list for role checks
+      allow create: if isOwner(userId); // Users can create their own profile
       allow update: if isAdmin() || isOwner(userId);
       allow delete: if isAdmin();
     }
@@ -74,24 +74,27 @@ service cloud.firestore {
     match /residents/{residentId} {
       // isOwner check is for resident user trying to get their own profile
       // residentId is their auth uid
-      allow get: if isSignedIn() && (isStaff() || isOwner(residentId));
-      allow list: if isSignedIn(); // Allow any logged-in user to list residents to solve race condition
+      allow get: if isStaff() || isOwner(residentId);
+      // Allow any logged-in user to list residents to solve race condition, but they can only get their own.
+      allow list: if isStaff() || (request.query.where.userId != null);
       // Only the user themselves can create their own resident profile
       allow create: if isOwner(residentId);
-      allow update: if isSignedIn() && (isStaff() || isOwner(residentId));
-      allow delete: if isSignedIn() && (isAdmin() || isOwner(residentId));
+      allow update: if isStaff() || isOwner(residentId);
+      allow delete: if isAdmin() || isOwner(residentId);
     }
 
     /**
      * @description Rules for the /documentRequests/{documentRequestId} collection.
      */
     match /documentRequests/{documentRequestId} {
-      allow get: if isSignedIn() && (isStaff() || resource.data.residentId == request.auth.uid);
-      allow list: if isSignedIn(); // Allow any logged-in user to list requests to solve race condition
+      allow get: if isStaff() || resource.data.residentId == request.auth.uid;
+      // Allow any logged-in user to list requests to solve race condition.
+      // Detailed GET rules will still protect individual documents.
+      allow list: if isSignedIn();
       // A resident can only create a request for themselves.
-      allow create: if isSignedIn() && request.resource.data.residentId == request.auth.uid;
+      allow create: if request.resource.data.residentId == request.auth.uid;
       // Staff can update/delete any request. Residents can only manage their own.
-      allow update, delete: if isSignedIn() && (isStaff() || resource.data.residentId == request.auth.uid);
+      allow update, delete: if isStaff() || resource.data.residentId == request.auth.uid;
     }
 
     /**

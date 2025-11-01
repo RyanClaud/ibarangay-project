@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { User, Resident, DocumentRequest, DocumentRequestStatus, Role } from '@/lib/types';
-import { users as initialUsers } from '@/lib/data';
+import { users as initialUsersData } from '@/lib/data';
 import {
   useCollection,
   useFirebase,
@@ -52,27 +52,32 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const documentRequestsQuery = useMemoFirebase(() => (firestore && currentUser ? collection(firestore, 'documentRequests') : null), [firestore, currentUser]);
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
-  const isDataLoading = isUsersLoading || isResidentsLoading || isRequestsLoading;
+  const isDataLoading = !currentUser || isUsersLoading || isResidentsLoading || isRequestsLoading;
 
   const login = async (credential: string, password: string) => {
-    if (!auth) throw new Error("Auth service not available.");
+    if (!auth || !firestore) throw new Error("Auth/Firestore service not available.");
 
     let emailToLogin = credential;
     
-    // This is an insecure way to find a resident's email.
-    // In a real app, this lookup should happen on a secure backend.
-    // For this project, we query the public `users` collection.
-    if (!credential.includes('@') && firestore) {
-      const usersRef = collection(firestore, 'users');
-      // A resident's UserID is stored in the resident document, which is linked by residentId in the user document.
-      // This is complex. A simpler approach is to query users by a field that might contain the resident User ID.
-      // Let's assume for now that residentId in the User object is what we're matching against the typed credential.
-      const q = query(usersRef, where("role", "==", "Resident"), where("residentId", "==", credential)); // This is still not quite right.
-      
-      // Let's try matching against the userId field inside the resident document. This is also flawed without a direct lookup.
-      // The most direct (but still flawed client-side) way is to fetch all users and find it.
-      // The security rules MUST allow an unauthenticated user to perform this specific query if this is to work.
-      // Given the current rules, this will likely fail. The logic will be simplified to just attempt login.
+    // Check if the credential is a resident ID (doesn't contain '@')
+    if (!credential.includes('@')) {
+        const residentsRef = collection(firestore, 'residents');
+        const q = query(residentsRef, where("userId", "==", credential));
+        
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            throw new Error("Invalid resident user ID.");
+        }
+        const residentDoc = querySnapshot.docs[0];
+        const residentData = residentDoc.data();
+        
+        const userDocRef = doc(firestore, 'users', residentDoc.id);
+        const userDoc = await getDoc(userDocRef);
+
+        if (!userDoc.exists()) {
+             throw new Error("Could not find user profile associated with resident.");
+        }
+        emailToLogin = userDoc.data().email;
     }
     
     await signInWithEmailAndPassword(auth, emailToLogin, password);
@@ -84,64 +89,82 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     setCurrentUser(null);
   };
 
-  const addResident = (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => {
-    if (!firestore || !auth) return;
+  const addResident = async (newResidentData: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'>) => {
+    if (!firestore || !auth || !residents) return;
     
-    // Generate a placeholder email, as it's required for auth but not used for resident login
-    const residentEmail = `${newResidentData.lastName.toLowerCase()}.${Date.now()}@ibarangay.local`;
-    const newId = doc(collection(firestore, 'residents')).id;
+    // Note: In a production app, resident emails should be real and unique.
+    // This temporary email is for demonstration purposes.
+    const residentEmail = `${newResidentData.lastName.toLowerCase().replace(/[^a-z0-9]/g, '')}${Date.now()}@ibarangay.local`;
     const newResUserIdNumber = (residents?.length ?? 1000) + 1;
     const residentUserId = `R-${newResUserIdNumber}`;
 
-    createUserWithEmailAndPassword(auth, residentEmail, 'password')
-      .then(userCredential => {
-        const authUser = userCredential.user;
-        
-        const batch = writeBatch(firestore);
+    try {
+      // Step 1: Create the user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, residentEmail, 'password');
+      const authUser = userCredential.user;
+      
+      const batch = writeBatch(firestore);
 
-        const newResident: Resident = {
-          ...newResidentData,
-          id: authUser.uid, // Use Auth UID for resident ID and document ID
-          userId: residentUserId, 
-          address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
-          avatarUrl: `https://picsum.photos/seed/${newId}/100/100`,
-        };
-        const residentRef = doc(firestore, 'residents', authUser.uid);
-        batch.set(residentRef, newResident);
+      // Step 2: Create the resident document in /residents collection
+      const newResident: Resident = {
+        ...newResidentData,
+        id: authUser.uid, // CRITICAL: Use Auth UID for the resident document ID
+        userId: residentUserId, 
+        address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
+        avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
+      };
+      const residentRef = doc(firestore, 'residents', authUser.uid);
+      batch.set(residentRef, newResident);
 
-        const newUser: User = {
-          id: authUser.uid,
-          name: `${newResidentData.firstName} ${newResidentData.lastName}`,
-          email: residentEmail,
-          avatarUrl: newResident.avatarUrl,
-          role: 'Resident',
-          residentId: newResident.id, // The resident's own ID
-        };
-        const userRef = doc(firestore, 'users', authUser.uid);
-        batch.set(userRef, newUser);
+      // Step 3: Create the user document in /users collection
+      const newUser: User = {
+        id: authUser.uid, // CRITICAL: Use the same Auth UID for the user document ID
+        name: `${newResidentData.firstName} ${newResidentData.lastName}`,
+        email: residentEmail,
+        avatarUrl: newResident.avatarUrl,
+        role: 'Resident',
+        residentId: newResident.id,
+      };
+      const userRef = doc(firestore, 'users', authUser.uid);
+      batch.set(userRef, newUser);
 
-        return batch.commit();
+      // Step 4: Commit all writes at once
+      await batch.commit();
 
-      }).catch(error => console.error("Error creating resident user:", error));
+    } catch (error: any) {
+      console.error("Error creating new resident:", error);
+      if (error.code === 'auth/email-already-in-use') {
+         throw new Error("An account for this resident might already exist.");
+      }
+       throw new Error("Failed to create resident account.");
+    }
   };
 
   const updateResident = (updatedResident: Resident) => {
     if (!firestore) return;
     const residentRef = doc(firestore, 'residents', updatedResident.id);
     updateDocumentNonBlocking(residentRef, updatedResident);
+
+    // Also update the name in the corresponding user document
+    const userRef = doc(firestore, 'users', updatedResident.id);
+    updateDocumentNonBlocking(userRef, { name: `${updatedResident.firstName} ${updatedResident.lastName}` });
   };
 
   const deleteResident = async (residentId: string) => {
     if (!firestore || !auth) return;
-    // In a real app, deleting the Auth user should be handled by a backend function for security.
-    console.warn("Warning: Deleting resident from Firestore only. This does not delete the Firebase Auth user.");
+    // This is a simplified client-side deletion. 
+    // In a production app, this should be a secure backend/Cloud Function operation
+    // that also deletes the Firebase Auth user.
+    console.warn("Warning: Deleting Firestore documents only. The Firebase Auth user must be deleted manually from the Firebase Console.");
     
+    const batch = writeBatch(firestore);
     const residentRef = doc(firestore, 'residents', residentId);
-    await deleteDocumentNonBlocking(residentRef);
-
-    // Also delete the corresponding user document
     const userRef = doc(firestore, 'users', residentId);
-    await deleteDocumentNonBlocking(userRef);
+
+    batch.delete(residentRef);
+    batch.delete(userRef);
+    
+    await batch.commit();
   };
 
   const addDocumentRequest = (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => {
@@ -165,33 +188,35 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     updateDocumentNonBlocking(requestRef, { status });
   };
 
-  const addUser = (user: Omit<User, 'id' | 'avatarUrl'>) => {
+  const addUser = async (user: Omit<User, 'id' | 'avatarUrl'>) => {
     if (!firestore || !auth) return;
     
-    createUserWithEmailAndPassword(auth, user.email, 'password')
-      .then(userCredential => {
-        const authUser = userCredential.user;
-        const newUser: User = {
-          ...user,
-          id: authUser.uid,
-          avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
-        };
-        const userRef = doc(firestore, 'users', authUser.uid);
-        setDocumentNonBlocking(userRef, newUser, { merge: true });
-      })
-      .catch(error => {
-        if (error.code === 'auth/email-already-in-use') {
-          console.warn(`Auth user with email ${user.email} already exists. Attempting to link to existing user doc.`);
-          // This case should be handled by the ensureUserDocument logic in useAuth hook
-        } else {
-          console.error("Error creating auth user:", error);
-        }
-      });
+    try {
+      // Step 1: Create the user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
+      const authUser = userCredential.user;
+      
+      // Step 2: Create the user document in Firestore
+      const newUser: User = {
+        ...user,
+        id: authUser.uid,
+        avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
+      };
+      const userRef = doc(firestore, 'users', authUser.uid);
+      await setDoc(userRef, newUser, { merge: true });
+    } catch (error: any) {
+      console.error("Error creating auth user:", error);
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error("This email is already in use. Please use a different email.");
+      }
+      throw new Error("Failed to create user.");
+    }
   };
 
   const updateUser = (updatedUser: User) => {
     if (!firestore) return;
     const userRef = doc(firestore, 'users', updatedUser.id);
+    // Do not update email from here as it's a sensitive operation
     const { email, ...rest } = updatedUser;
     updateDocumentNonBlocking(userRef, rest);
   };
@@ -227,7 +252,6 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   );
 }
 
-
 export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <FirebaseClientProvider>
@@ -235,7 +259,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     </FirebaseClientProvider>
   );
 }
-
 
 export function useAppContext() {
   const context = useContext(AppContext);
