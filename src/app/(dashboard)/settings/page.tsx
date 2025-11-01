@@ -19,6 +19,66 @@ import { ChangePasswordForm } from "@/components/account/change-password-form";
 import { useAppContext } from "@/contexts/app-context";
 import { ResidentSettings } from "@/components/account/resident-settings";
 
+function ProfilePhotoCard() {
+    const { currentUser, updateUser } = useAppContext();
+    const [isSaving, setIsSaving] = useState(false);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(currentUser?.avatarUrl || null);
+
+    useEffect(() => {
+        if (currentUser?.avatarUrl) {
+            setAvatarPreview(currentUser.avatarUrl);
+        }
+    }, [currentUser]);
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files && event.target.files[0]) {
+            const file = event.target.files[0];
+            setAvatarFile(file);
+            setAvatarPreview(URL.createObjectURL(file));
+        }
+    };
+
+    const handleSave = async () => {
+        if (!currentUser) return;
+        setIsSaving(true);
+        try {
+            await updateUser(currentUser, avatarFile);
+            toast({ title: "Profile Picture Updated", description: "Your new picture has been saved." });
+            setAvatarFile(null);
+        } catch (error: any) {
+            toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Profile Picture</CardTitle>
+                <CardDescription>Update your profile picture.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="avatar">Your Picture</Label>
+                    <div className="flex items-center gap-4">
+                        {avatarPreview && <Image src={avatarPreview} alt="Avatar" width={64} height={64} className="rounded-full bg-muted object-cover" unoptimized />}
+                        <Input id="avatar" type="file" onChange={handleFileChange} accept="image/*" />
+                    </div>
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button onClick={handleSave} disabled={isSaving || !avatarFile}>
+                    {isSaving && <Loader2 className="mr-2 animate-spin" />}
+                    Save Picture
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+}
+
+
 function AdminSettings() {
   const { firestore, storage, areServicesAvailable } = useFirebase();
   const [barangayName, setBarangayName] = useState("Barangay Mina De Oro");
@@ -152,7 +212,10 @@ function AdminSettings() {
         </Card>
       </TabsContent>
       <TabsContent value="account">
-          <ChangePasswordForm />
+          <div className="grid gap-6">
+            <ProfilePhotoCard />
+            <ChangePasswordForm />
+          </div>
       </TabsContent>
       <TabsContent value="users">
           <UserManagementClientPage />
@@ -213,4 +276,3 @@ export default function SettingsPage() {
         </div>
     );
 }
-

@@ -13,6 +13,7 @@ import {
   useDoc,
 } from '@/firebase';
 import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs, limit } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { toast } from '@/hooks/use-toast';
@@ -23,14 +24,14 @@ interface AppContextType {
   logout: () => void;
   residents: Resident[] | null;
   addResident: (resident: Omit<Resident, 'id' | 'userId' | 'avatarUrl' | 'address'> & { email: string }) => Promise<void>;
-  updateResident: (resident: Resident) => void;
+  updateResident: (resident: Resident, newAvatarFile?: File | null) => Promise<void>;
   deleteResident: (residentId: string) => void;
   documentRequests: DocumentRequest[] | null;
   addDocumentRequest: (request: Omit<DocumentRequest, 'id' | 'trackingNumber' | 'requestDate' | 'status'>) => void;
   updateDocumentRequestStatus: (id: string, status: DocumentRequestStatus) => void;
   users: User[] | null;
   addUser: (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => Promise<void>;
-  updateUser: (user: User) => void;
+  updateUser: (user: User, newAvatarFile?: File | null) => Promise<void>;
   deleteUser: (userId: string) => void;
   isDataLoading: boolean;
   login: (credential: string, password: string) => Promise<void>;
@@ -40,7 +41,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 function AppProviderContent({ children }: { children: ReactNode }) {
-  const { firestore, auth } = useFirebase();
+  const { firestore, auth, storage } = useFirebase();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // --- Staff-specific Queries ---
@@ -140,49 +141,65 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     
     const defaultPassword = 'password';
 
-    const userCredential = await createUserWithEmailAndPassword(auth, newResidentData.email, defaultPassword);
-    const authUser = userCredential.user;
-    
-    const batch = writeBatch(firestore);
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, newResidentData.email, defaultPassword);
+        const authUser = userCredential.user;
+        
+        const batch = writeBatch(firestore);
 
-    const residentId = authUser.uid;
-    const userId = `R-${authUser.uid.slice(0,6).toUpperCase()}`;
+        const residentId = authUser.uid;
+        const userId = `R-${authUser.uid.slice(0,6).toUpperCase()}`;
 
-    const newResident: Resident = {
-      ...newResidentData,
-      id: residentId, 
-      userId: userId, 
-      address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
-      avatarUrl: `https://picsum.photos/seed/${residentId}/100/100`,
-      email: newResidentData.email,
-    };
-    const residentRef = doc(firestore, 'residents', residentId);
-    batch.set(residentRef, newResident);
+        const newResident: Resident = {
+          ...newResidentData,
+          id: residentId, 
+          userId: userId, 
+          address: `${newResidentData.purok}, Brgy. Mina De Oro, Bongabong, Oriental Mindoro`,
+          avatarUrl: `https://picsum.photos/seed/${residentId}/100/100`,
+          email: newResidentData.email,
+        };
+        const residentRef = doc(firestore, 'residents', residentId);
+        batch.set(residentRef, newResident);
 
-    const newUser: User = {
-      id: residentId,
-      name: `${newResidentData.firstName} ${newResidentData.lastName}`,
-      email: newResidentData.email,
-      avatarUrl: newResident.avatarUrl,
-      role: 'Resident',
-      residentId: residentId,
-    };
-    const userRef = doc(firestore, 'users', residentId);
-    batch.set(userRef, newUser);
+        const newUser: User = {
+          id: residentId,
+          name: `${newResidentData.firstName} ${newResidentData.lastName}`,
+          email: newResidentData.email,
+          avatarUrl: newResident.avatarUrl,
+          role: 'Resident',
+          residentId: residentId,
+        };
+        const userRef = doc(firestore, 'users', residentId);
+        batch.set(userRef, newUser);
 
-    await batch.commit();
-
+        await batch.commit();
+    } catch (error: any) {
+        if (error.code === 'auth/email-already-in-use') {
+            throw new Error("An account for this email already exists.");
+        }
+        throw error;
+    }
   };
 
-  const updateResident = (updatedResident: Resident) => {
-    if (!firestore) return;
-    const residentRef = doc(firestore, 'residents', updatedResident.id);
-    updateDocumentNonBlocking(residentRef, updatedResident);
+  const updateResident = async (updatedResident: Resident, newAvatarFile?: File | null) => {
+    if (!firestore || !storage) return;
+
+    let updatedData = { ...updatedResident };
+
+    if (newAvatarFile) {
+        const storageRef = ref(storage, `profile-pictures/${updatedResident.id}/${newAvatarFile.name}`);
+        const uploadResult = await uploadBytes(storageRef, newAvatarFile);
+        const avatarUrl = await getDownloadURL(uploadResult.ref);
+        updatedData.avatarUrl = avatarUrl;
+    }
+    
+    const residentRef = doc(firestore, 'residents', updatedData.id);
+    updateDocumentNonBlocking(residentRef, updatedData);
   
-    const userRef = doc(firestore, 'users', updatedResident.id);
+    const userRef = doc(firestore, 'users', updatedData.id);
     updateDocumentNonBlocking(userRef, { 
-      name: `${updatedResident.firstName} ${updatedResident.lastName}`,
-      // We do not update email here as it's tied to auth.
+      name: `${updatedData.firstName} ${updatedData.lastName}`,
+      avatarUrl: updatedData.avatarUrl, // Also update user doc
     });
   };
 
@@ -238,22 +255,39 @@ function AppProviderContent({ children }: { children: ReactNode }) {
   const addUser = async (user: Omit<User, 'id' | 'avatarUrl' | 'residentId'>) => {
     if (!firestore || !auth) throw new Error("Firebase services are not available.");
     
-    const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
-    const authUser = userCredential.user;
-    
-    const newUser: User = {
-      ...user,
-      id: authUser.uid,
-      avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
-    };
-    const userRef = doc(firestore, 'users', authUser.uid);
-    await setDoc(userRef, newUser, { merge: true });
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
+        const authUser = userCredential.user;
+        
+        const newUser: User = {
+          ...user,
+          id: authUser.uid,
+          avatarUrl: `https://picsum.photos/seed/${authUser.uid}/100/100`,
+        };
+        const userRef = doc(firestore, 'users', authUser.uid);
+        await setDoc(userRef, newUser, { merge: true });
+    } catch (error: any) {
+        if (error.code === 'auth/email-already-in-use') {
+            throw new Error("An account for this email already exists.");
+        }
+        throw error;
+    }
   };
 
-  const updateUser = (updatedUser: User) => {
-    if (!firestore) return;
-    const userRef = doc(firestore, 'users', updatedUser.id);
-    const { id, email, ...rest } = updatedUser; // email and id cannot be changed
+  const updateUser = async (updatedUser: User, newAvatarFile?: File | null) => {
+    if (!firestore || !storage) return;
+
+    let updatedData = { ...updatedUser };
+    const { id, email, ...rest } = updatedData; // email and id cannot be changed
+
+    if (newAvatarFile) {
+        const storageRef = ref(storage, `profile-pictures/${id}/${newAvatarFile.name}`);
+        const uploadResult = await uploadBytes(storageRef, newAvatarFile);
+        const avatarUrl = await getDownloadURL(uploadResult.ref);
+        rest.avatarUrl = avatarUrl;
+    }
+    
+    const userRef = doc(firestore, updatedUser.id);
     updateDocumentNonBlocking(userRef, rest);
   };
 
