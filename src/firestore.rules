@@ -72,8 +72,10 @@ service cloud.firestore {
      * @description Rules for the /residents/{residentId} collection.
      */
     match /residents/{residentId} {
+      // A resident can get their own profile. Staff can get any profile.
       allow get: if isStaff() || isOwner(residentId);
-      allow list: if isStaff() || (request.auth == null && request.query.keys().hasOnly(['userId']));
+      // Staff can list all residents. Residents can only list their own profile (via a constrained query).
+      allow list: if isStaff();
       allow create: if isOwner(residentId);
       allow update: if isStaff() || isOwner(residentId);
       allow delete: if isAdmin() || isOwner(residentId);
@@ -83,9 +85,10 @@ service cloud.firestore {
      * @description Rules for the /documentRequests/{documentRequestId} collection.
      */
     match /documentRequests/{documentRequestId} {
+      // A resident can get their own request. Staff can get any request.
       allow get: if isStaff() || resource.data.residentId == request.auth.uid;
-      // Staff can list all requests. Residents can only list their own.
-      allow list: if isStaff() || (isSignedIn() && request.query.where.residentId == request.auth.uid);
+      // Staff can list all requests. Residents can only list their own requests (via a constrained query).
+      allow list: if isStaff();
       allow create: if request.resource.data.residentId == request.auth.uid;
       allow update, delete: if isStaff() || resource.data.residentId == request.auth.uid;
     }
