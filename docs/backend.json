@@ -268,9 +268,20 @@
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
-    ]
+      "password"
+    ],
+    "claims": {
+      "role": {
+        "type": "string",
+        "enum": [
+          "Admin",
+          "Barangay Captain",
+          "Secretary",
+          "Treasurer",
+          "Resident"
+        ]
+      }
+    }
   },
   "firestore": {
     "structure": [
@@ -366,22 +377,6 @@
             {
               "name": "configId",
               "description": "Unique identifier for the configuration."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "roles_admin",
-          "schema": {
-            "$ref": "#/backend/entities/Resident"
-          },
-          "description": "Collection to manage admin roles. Document existence determines admin privileges. (Existence over Content)",
-          "params": [
-            {
-              "name": "userId",
-              "description": "Unique identifier for the user with admin role."
             }
           ]
         }

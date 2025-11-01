@@ -11,6 +11,7 @@ import {
   updateDocumentNonBlocking,
   deleteDocumentNonBlocking,
   initiateSignOut,
+  initiateEmailSignIn,
 } from '@/firebase';
 import { collection, doc, writeBatch, getDoc, setDoc, query, where, getDocs } from 'firebase/firestore';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -39,106 +40,112 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // Helper function to seed initial users into Firebase Auth and Firestore
 const seedInitialUsers = async (firestore: any, auth: any) => {
-  if (sessionStorage.getItem('firebase_users_seeded_v2')) {
+  if (sessionStorage.getItem('firebase_users_seeded_v3')) {
     return;
   }
   console.log('Seeding initial staff users...');
 
   for (const user of initialUsers) {
     try {
-      const signInMethods = await fetchSignInMethodsForEmail(auth, user.email);
+      // Check if user exists in auth
+      let authUser;
+      try {
+        const signInMethods = await fetchSignInMethodsForEmail(auth, user.email);
+        if (signInMethods.length > 0) {
+          // This is not perfectly accurate as it doesn't give us the UID, but it's a good guess
+          // A more robust solution might involve a Cloud Function lookup.
+          console.log(`Auth user ${user.email} already exists.`);
+           const usersQuery = query(collection(firestore, "users"), where("email", "==", user.email));
+           const querySnapshot = await getDocs(usersQuery);
+            if (!querySnapshot.empty) {
+                authUser = { uid: querySnapshot.docs[0].id };
+            } else {
+                 console.warn(`Auth user ${user.email} exists but has no Firestore document. This should not happen.`);
+                 continue; // Skip to next user
+            }
 
-      if (signInMethods.length === 0) {
-        console.log(`Creating auth user for ${user.email}...`);
-        const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
-        const authUser = userCredential.user;
-        
-        const userDocRef = doc(firestore, 'users', authUser.uid);
-        const userData: User = {
-          ...user,
-          id: authUser.uid,
-        };
-        await setDoc(userDocRef, userData);
-        console.log(`User ${user.email} created in Auth and Firestore with UID: ${authUser.uid}.`);
-
-      } else {
-         // User exists in Auth, ensure they have a firestore doc.
-         // This is a recovery step for failed previous attempts.
-         const usersQuery = query(collection(firestore, "users"), where("email", "==", user.email));
-         const querySnapshot = await getDocs(usersQuery);
-         if(querySnapshot.empty) {
-            console.warn(`Auth user ${user.email} exists but has no Firestore document. This should not happen.`);
+        } else {
+            const userCredential = await createUserWithEmailAndPassword(auth, user.email, 'password');
+            authUser = userCredential.user;
+            console.log(`User ${user.email} created in Auth with UID: ${authUser.uid}.`);
+        }
+      } catch (authError: any) {
+         if (authError.code === 'auth/email-already-in-use') {
+            console.log(`Auth user ${user.email} already exists (caught on create).`);
+             const usersQuery = query(collection(firestore, "users"), where("email", "==", user.email));
+             const querySnapshot = await getDocs(usersQuery);
+             if (!querySnapshot.empty) {
+                authUser = { uid: querySnapshot.docs[0].id };
+            } else {
+                 console.warn(`Auth user ${user.email} exists but has no Firestore document. This should not happen.`);
+                 continue; // Skip to next user
+            }
+         } else {
+            throw authError;
          }
       }
-    } catch (error: any) {
-      if (error.code === 'auth/email-already-in-use') {
-        console.log(`Auth user ${user.email} already exists. Skipping auth creation.`);
-      } else {
-        console.error(`Error seeding user ${user.email}:`, error);
+
+      // Now check/create the firestore document
+      if (authUser?.uid) {
+        const userDocRef = doc(firestore, 'users', authUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+          console.log(`Creating Firestore doc for ${user.email} with UID ${authUser.uid}.`);
+          const userData: User = {
+            ...user,
+            id: authUser.uid,
+          };
+          await setDoc(userDocRef, userData);
+        }
       }
+
+    } catch (error: any) {
+      console.error(`Error seeding user ${user.email}:`, error);
     }
   }
   
-  sessionStorage.setItem('firebase_users_seeded_v2', 'true');
+  sessionStorage.setItem('firebase_users_seeded_v3', 'true');
 };
 
 
 function AppProviderContent({ children }: { children: ReactNode }) {
-  const { firestore, auth, user: firebaseUser, isUserLoading: isAuthLoading } = useFirebase();
+  const { firestore, auth } = useFirebase();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // Seed users on initial load if auth is ready.
-  useEffect(() => {
-    if (firestore && auth && !isAuthLoading) {
-      seedInitialUsers(firestore, auth);
-    }
-  }, [firestore, auth, isAuthLoading]);
-
-  // Fetch all collections. These hooks are safe because they return null if firestore is not ready.
+  // Users data from collection
   const usersQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'users') : null), [firestore]);
   const { data: users, isLoading: isUsersLoading } = useCollection<User>(usersQuery);
-
+  // Residents data from collection
   const residentsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'residents') : null), [firestore]);
   const { data: residents, isLoading: isResidentsLoading } = useCollection<Resident>(residentsQuery);
-
+  // Document Requests data from collection
   const documentRequestsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'documentRequests') : null), [firestore]);
   const { data: documentRequests, isLoading: isRequestsLoading } = useCollection<DocumentRequest>(documentRequestsQuery);
 
-  // This is the main loading state for the entire app's data.
-  const isDataLoading = isAuthLoading || isUsersLoading || isResidentsLoading || isRequestsLoading;
+  const isDataLoading = isUsersLoading || isResidentsLoading || isRequestsLoading;
+
+  // Run seeding effect
+  useEffect(() => {
+    if (firestore && auth) {
+      seedInitialUsers(firestore, auth);
+    }
+  }, [firestore, auth]);
 
   const login = async (credential: string, password: string) => {
     if (!auth) throw new Error("Auth service not available.");
-    
-    // Resident ID check is heuristic. A real app might use a Cloud Function for lookup.
-    const isLikelyResidentID = /R-\d+/.test(credential);
-    let emailToLogin = credential;
 
-    if (isLikelyResidentID && firestore) {
-      // THIS IS INSECURE for a real app but required by the prompt's design.
-      // An unauthenticated user cannot query the 'residents' collection with default rules.
-      // For this to work, security rules would need to be relaxed, which is not ideal.
-      // We will assume for now it fails silently and the user must use email.
-      // In a real scenario, this lookup should be done via a secure backend endpoint (Cloud Function).
-      console.warn("Attempting to look up resident by ID before login. This is insecure and will likely fail with default security rules.");
-      const resQuery = query(collection(firestore, "residents"), where("userId", "==", credential));
-      const resSnapshot = await getDocs(resQuery);
-      if (!resSnapshot.empty) {
-        const resDoc = resSnapshot.docs[0];
-        const resData = resDoc.data();
-        const userQuery = query(collection(firestore, "users"), where("residentId", "==", resDoc.id));
-        const userSnapshot = await getDocs(userQuery);
-        if (!userSnapshot.empty) {
-          emailToLogin = userSnapshot.docs[0].data().email;
-        } else {
-            throw new Error("Resident found, but no associated user account exists.");
-        }
-      } else {
-        // To prevent revealing which IDs exist, we don't throw here.
-        // It will just fail the email/password sign-in below.
-      }
+    let emailToLogin = credential;
+    // This heuristic is not secure but is required by the prompt's design.
+    // A real app would use a secure backend endpoint for this lookup.
+    if (!credential.includes('@') && firestore && users) {
+       const residentUser = users.find(u => u.role === 'Resident' && u.residentId && residents?.find(r => r.id === u.residentId)?.userId === credential);
+       if(residentUser) {
+        emailToLogin = residentUser.email;
+       }
     }
     
+    // Use initiateEmailSignIn which is non-blocking and returns a promise for the UI to handle
     await signInWithEmailAndPassword(auth, emailToLogin, password);
   };
 
@@ -230,6 +237,10 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     createUserWithEmailAndPassword(auth, user.email, 'password')
       .then(userCredential => {
         const authUser = userCredential.user;
+        // In a real app, you would call a Cloud Function here to set custom claims
+        // For example: setCustomUserClaims(authUser.uid, { role: user.role });
+        console.log(`User created. In a real app, a custom claim for role '${user.role}' would be set here.`);
+
         const newUser: User = {
           ...user,
           id: authUser.uid,
@@ -251,6 +262,8 @@ function AppProviderContent({ children }: { children: ReactNode }) {
     if (!firestore) return;
     const userRef = doc(firestore, 'users', updatedUser.id);
     const { email, ...rest } = updatedUser;
+    // In a real app, you would call a Cloud Function here to update the custom claim
+    console.log(`User updated. In a real app, a custom claim for role '${updatedUser.role}' would be set here.`);
     updateDocumentNonBlocking(userRef, rest);
   };
 

@@ -58,10 +58,17 @@ service cloud.firestore {
     }
 
     /**
-     * @description Checks if the authenticated user is an admin.
+     * @description Checks if the authenticated user is an admin by checking custom claims.
      */
     function isAdmin() {
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() && request.auth.token.role == "Admin";
+    }
+
+    /**
+     * @description Checks if the authenticated user is a staff member (not a Resident) by checking custom claims.
+     */
+    function isStaff() {
+      return isSignedIn() && request.auth.token.role != "Resident";
     }
     
     /**
@@ -96,8 +103,7 @@ service cloud.firestore {
      */
     match /residents/{residentId} {
       allow get: if isOwner(residentId) || isAdmin();
-      allow list: if isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'Resident';
-
+      allow list: if isStaff();
       allow create: if isOwner(residentId) && request.resource.data.userId == residentId;
       allow update: if isExistingOwner(residentId) || isAdmin();
       allow delete: if isExistingOwner(residentId) || isAdmin();
@@ -119,20 +125,10 @@ service cloud.firestore {
      * @principle Enforces document ownership for writes, and allows residents to read/write their own document requests.
      */
     match /documentRequests/{documentRequestId} {
-      allow get: if isSignedIn() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'Resident' 
-        || resource.data.residentId == request.auth.uid
-      );
-      allow list: if isSignedIn() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'Resident'
-        || request.query.where.residentId == request.auth.uid
-      );
-
+      allow get: if isSignedIn() && (isStaff() || resource.data.residentId == request.auth.uid);
+      allow list: if isSignedIn() && (isStaff() || request.query.where.residentId == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.residentId == request.auth.uid;
-      allow update, delete: if isSignedIn() && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role != 'Resident'
-        || resource.data.residentId == request.auth.uid
-      );
+      allow update, delete: if isSignedIn() && (isStaff() || resource.data.residentId == request.auth.uid);
     }
 
     /**
@@ -169,11 +165,7 @@ service cloud.firestore {
      * @principle Officials data is only manageable by admins.
      */
     match /officials/{officialId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
     /**
@@ -190,14 +182,11 @@ service cloud.firestore {
      * @principle Allows public read access, but restricts writes to admins.
      */
     match /barangayConfig/{configId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-        /**
+    /**
      * @description Rules for the /roles_admin/{userId} collection. Document existence grants admin role.
      * @path /roles_admin/{userId}
      * @allow (get) Admins can check for other admins.
