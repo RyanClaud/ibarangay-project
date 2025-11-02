@@ -1,0 +1,408 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user account in the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user, used for login for non-residents.",
+          "format": "email"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "URL for the user's avatar image.",
+          "format": "uri"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user in the system.",
+          "enum": [
+            "Admin",
+            "Barangay Captain",
+            "Secretary",
+            "Treasurer",
+            "Resident"
+          ]
+        },
+        "residentId": {
+          "type": "string",
+          "description": "Optional reference to a Resident entity if the user is a resident."
+        }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "Resident": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Resident",
+      "type": "object",
+      "description": "Represents a resident in the barangay.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Resident entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Unique user ID assigned to the resident for system login.  This is a unique identifier assigned to a resident by the system."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the resident."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the resident."
+        },
+        "middleName": {
+          "type": "string",
+          "description": "Middle name of the resident."
+        },
+        "address": {
+          "type": "string",
+          "description": "Complete address of the resident."
+        },
+        "birthdate": {
+          "type": "string",
+          "description": "Birthdate of the resident.",
+          "format": "date"
+        },
+        "householdNumber": {
+          "type": "string",
+          "description": "Household number of the resident."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the resident.",
+          "format": "email"
+        },
+        "contactNumber": {
+          "type": "string",
+          "description": "Contact number of the resident."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "firstName",
+        "lastName",
+        "address",
+        "birthdate",
+        "householdNumber",
+        "email"
+      ]
+    },
+    "DocumentRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DocumentRequest",
+      "type": "object",
+      "description": "Represents a document request made by a resident.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DocumentRequest entity."
+        },
+        "residentId": {
+          "type": "string",
+          "description": "Reference to Resident. (Relationship: Resident 1:N DocumentRequest)"
+        },
+        "documentType": {
+          "type": "string",
+          "description": "Type of document requested (e.g., Barangay Clearance, Certificate of Residency)."
+        },
+        "requestDate": {
+          "type": "string",
+          "description": "Date when the document was requested.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the request (e.g., Pending, Approved, Released)."
+        },
+        "referenceNumber": {
+          "type": "string",
+          "description": "Reference number for the payment transaction. It is also included in the QR code."
+        },
+        "approvalDate": {
+          "type": "string",
+          "description": "Date when the document request was approved.",
+          "format": "date-time"
+        },
+        "releaseDate": {
+          "type": "string",
+          "description": "Date when the document was released.",
+          "format": "date-time"
+        },
+        "amountDue": {
+          "type": "number",
+          "description": "Amount due for the requested document."
+        },
+        "paymentDetails": {
+          "type": "object",
+          "description": "Details of the payment made for the request.",
+          "properties": {
+            "method": {
+              "type": "string",
+              "description": "Payment method used (e.g., GCash, Cash)."
+            },
+            "transactionId": {
+              "type": "string",
+              "description": "The transaction ID from the payment provider."
+            },
+            "paymentDate": {
+              "type": "string",
+              "format": "date-time",
+              "description": "The date and time of the payment."
+            }
+          }
+        }
+      },
+      "required": [
+        "id",
+        "residentId",
+        "documentType",
+        "requestDate",
+        "status",
+        "referenceNumber"
+      ]
+    },
+    "Payment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payment",
+      "type": "object",
+      "description": "Represents a payment made for a document request.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Payment entity."
+        },
+        "documentRequestId": {
+          "type": "string",
+          "description": "Reference to DocumentRequest. (Relationship: DocumentRequest 1:N Payment)"
+        },
+        "paymentDate": {
+          "type": "string",
+          "description": "Date when the payment was made.",
+          "format": "date-time"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Method of payment (e.g., Cash, GCash)."
+        },
+        "amountPaid": {
+          "type": "number",
+          "description": "Amount paid for the document."
+        },
+        "transactionId": {
+          "type": "string",
+          "description": "Transaction ID generated for the payment."
+        }
+      },
+      "required": [
+        "id",
+        "documentRequestId",
+        "paymentDate",
+        "paymentMethod",
+        "amountPaid"
+      ]
+    },
+    "Official": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Official",
+      "type": "object",
+      "description": "Represents a barangay official.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Official entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the barangay official."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the barangay official."
+        },
+        "position": {
+          "type": "string",
+          "description": "Position of the official (e.g., Barangay Captain, Secretary, Treasurer)."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the barangay official. Used for system login.",
+          "format": "email"
+        },
+        "contactNumber": {
+          "type": "string",
+          "description": "Contact number of the barangay official."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "position",
+        "email"
+      ]
+    },
+    "BarangayConfig": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BarangayConfig",
+      "type": "object",
+      "description": "Configuration settings for the barangay.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the BarangayConfig entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the barangay."
+        },
+        "address": {
+          "type": "string",
+          "description": "Address of the barangay."
+        },
+        "sealLogoUrl": {
+          "type": "string",
+          "description": "URL of the barangay seal/logo.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "address"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password"
+    ],
+    "claims": {
+      "role": {
+        "type": "string",
+        "enum": [
+          "Admin",
+          "Barangay Captain",
+          "Secretary",
+          "Treasurer",
+          "Resident"
+        ]
+      }
+    }
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user accounts. Includes roles and optional link to resident profiles.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/residents/{residentId}",
+        "definition": {
+          "entityName": "Resident",
+          "schema": {
+            "$ref": "#/backend/entities/Resident"
+          },
+          "description": "Stores resident profiles. Includes the 'userId' field for authentication purposes.",
+          "params": [
+            {
+              "name": "residentId",
+              "description": "Unique identifier for the resident."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/documentRequests/{documentRequestId}",
+        "definition": {
+          "entityName": "DocumentRequest",
+          "schema": {
+            "$ref": "#/backend/entities/DocumentRequest"
+          },
+          "description": "Stores document requests made by residents. Includes the 'residentId' field, denormalized from the resident's profile, to enable efficient querying and authorization.",
+          "params": [
+            {
+              "name": "documentRequestId",
+              "description": "Unique identifier for the document request."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/payments/{paymentId}",
+        "definition": {
+          "entityName": "Payment",
+          "schema": {
+            "$ref": "#/backend/entities/Payment"
+          },
+          "description": "Stores payment information for document requests. Includes the 'documentRequestId' to link payments to requests.",
+          "params": [
+            {
+              "name": "paymentId",
+              "description": "Unique identifier for the payment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/officials/{officialId}",
+        "definition": {
+          "entityName": "Official",
+          "schema": {
+            "$ref": "#/backend/entities/Official"
+          },
+          "description": "Stores information about barangay officials.",
+          "params": [
+            {
+              "name": "officialId",
+              "description": "Unique identifier for the official."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/barangayConfig/{configId}",
+        "definition": {
+          "entityName": "BarangayConfig",
+          "schema": {
+            "$ref": "#/backend/entities/BarangayConfig"
+          },
+          "description": "Stores configuration settings for the barangay.",
+          "params": [
+            {
+              "name": "configId",
+              "description": "Unique identifier for the configuration."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the iBarangay system's requirements for resident management, document requests, payments, and role-based access. The structure prioritizes authorization independence by denormalizing relevant data, ensuring that security rules can be evaluated without requiring complex `get()` calls. It uses structural segregation to maintain a homogeneous security posture within collections and leverages consistent access modeling patterns for clarity and maintainability.\n\n1.  **Authorization Independence:** The `Resident` document includes the `userId` which facilitates direct association of document requests to residents. The `DocumentRequest` collection includes `residentId`, payment status, and other relevant details, which are used for authorization rules without needing to `get()` data from parent documents. The system avoid complex claims and allows direct referencing using `request.auth.uid`.\n2.  **Structural Segregation:** Each top-level collection (`users`, `residents`, `documentRequests`, `payments`, `officials`, `barangayConfig`) contains documents with similar security requirements. The use of subcollections under `/users/{userId}` is deliberately avoided in favor of denormalization within the root-level collections to maintain scalability and authorization complexity. The structure adheres to homogeneous security needs.\n3.  **Access Modeling:**\n    *   **Path-Based Ownership:** User-specific data (like `DocumentRequest` history) could potentially be stored under `/users/{userId}/documentRequests/{documentRequestId}`. However, given the need for reporting and aggregated views across all residents, the root-level `documentRequests` collection is favored, with denormalization of `residentId` for filtering and authorization. Residents are stored in the `/residents` collection, with their `userId` stored as a field in the document.\n    *   **Global Roles (DBAC):** While not explicitly defined in the entities, global roles (e.g., Admin) are managed via existence checks in dedicated collections like `/roles_admin/{uid}`. This is not reflected in the provided entities but represents best practice for role management.\n\nThe structure supports QAPs by:\n\n*   Segregating data with different access needs into separate collections.\n*   Using denormalization to enable secure `list` operations based on the `residentId` in the `documentRequests` collection."
+  }
+}
