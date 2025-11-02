@@ -88,7 +88,11 @@ export function RequestForm() {
   }
 
   return (
+<<<<<<< HEAD
     <Card>
+=======
+    <Card className="fade-in transition-all hover:shadow-lg">
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardHeader>
@@ -130,7 +134,11 @@ export function RequestForm() {
             )}
           </CardContent>
           <CardFooter>
+<<<<<<< HEAD
             <Button type="submit" className="bg-blue-600 text-white transition-all duration-300 ease-in-out hover:bg-gradient-to-r hover:from-[hsl(var(--gradient-start))] hover:to-[hsl(var(--gradient-end))] hover:shadow-lg hover:scale-105">Submit Request</Button>
+=======
+            <Button type="submit">Submit Request</Button>
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
           </CardFooter>
         </form>
       </Form>

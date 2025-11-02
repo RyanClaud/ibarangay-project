@@ -72,7 +72,11 @@ export function PaymentDialog({ isOpen, onClose, request }: PaymentDialogProps) 
         <div className="space-y-4 py-4">
             <div className="text-center">
                 <p className="text-sm text-muted-foreground">Total Amount Due</p>
+<<<<<<< HEAD
                 <p className="text-4xl font-bold">{request.amount.toLocaleString('en-US', { style: 'currency', currency: 'PHP' })}</p>
+=======
+                <p className="text-4xl font-bold">₱{request.amount.toFixed(2)}</p>
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
             </div>
             <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
                 <p className="text-sm text-muted-foreground">1. Pay to this GCash Number:</p>
@@ -105,7 +109,11 @@ export function PaymentDialog({ isOpen, onClose, request }: PaymentDialogProps) 
 
         <DialogFooter>
           <Button onClick={onClose} variant="outline" disabled={isSubmitting}>Cancel</Button>
+<<<<<<< HEAD
            <Button onClick={handleSubmitPayment} disabled={isSubmitting || !transactionId} className="bg-gradient-to-r from-[hsl(var(--gradient-start))] to-[hsl(var(--gradient-end))] text-primary-foreground hover:opacity-90 transition-opacity">
+=======
+           <Button onClick={handleSubmitPayment} disabled={isSubmitting || !transactionId}>
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
                 {isSubmitting && <Loader2 className="animate-spin" />}
                 {isSubmitting ? 'Submitting...' : 'Submit Payment'}
             </Button>

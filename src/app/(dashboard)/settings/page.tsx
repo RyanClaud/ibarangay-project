@@ -80,11 +80,19 @@ function AdminSettings() {
 
   return (
     <Tabs defaultValue="barangay" className="w-full">
+<<<<<<< HEAD
       <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4 h-auto bg-muted/60 p-1 rounded-xl">
         <TabsTrigger value="barangay" className="data-[state=active]:tab-active-gradient rounded-lg">Barangay Details</TabsTrigger>
         <TabsTrigger value="account" className="data-[state=active]:tab-active-gradient rounded-lg">Account</TabsTrigger>
         <TabsTrigger value="users" className="data-[state=active]:tab-active-gradient rounded-lg">User Management</TabsTrigger>
         <TabsTrigger value="system" className="data-[state=active]:tab-active-gradient rounded-lg">System</TabsTrigger>
+=======
+      <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
+        <TabsTrigger value="barangay">Barangay Details</TabsTrigger>
+        <TabsTrigger value="account">Account</TabsTrigger>
+        <TabsTrigger value="users">User Management</TabsTrigger>
+        <TabsTrigger value="system">System</TabsTrigger>
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
       </TabsList>
       <TabsContent value="barangay">
         <Card>
@@ -144,7 +152,11 @@ function AdminSettings() {
               <CardContent className="space-y-6">
                   <div className="space-y-2">
                       <h4 className="font-semibold">Database</h4>
+<<<<<<< HEAD
                       <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+=======
+                      <div className="flex flex-col sm:flex-row gap-2">
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
                           <Button variant="outline">Backup Database</Button>
                           <Button variant="destructive">Restore Database</Button>
                       </div>

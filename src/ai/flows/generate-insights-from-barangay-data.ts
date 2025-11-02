@@ -43,12 +43,17 @@ const insightsPrompt = ai.definePrompt({
   name: 'insightsPrompt',
   input: {schema: GenerateInsightsInputSchema},
   output: {schema: GenerateInsightsOutputSchema},
+<<<<<<< HEAD
   prompt: `You are an AI data analyst for a local government unit. Your task is to provide a clear, professional analysis of barangay data for the administrator.
+=======
+  prompt: `You are an AI assistant tasked with analyzing barangay data to provide valuable insights to the administrator.
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
 
   Analyze the following resident data and document request patterns to identify trends, potential issues, and actionable recommendations.
 
   Resident Data: {{{residentData}}}
   Document Request Data: {{{documentRequestData}}}
+<<<<<<< HEAD
   Parameters: {{{parameters}}}
 
   Please format your response as a professional report:
@@ -56,6 +61,14 @@ const insightsPrompt = ai.definePrompt({
   2.  Follow the summary with a bulleted or numbered list detailing specific insights, trends, or potential issues you have identified.
   3.  For each point, provide a brief, actionable recommendation.
   4.  Write in clear, well-formed paragraphs. Do not use markdown formatting like asterisks for bolding (e.g., **text**). The structure of your response (paragraphs and lists) should provide the necessary emphasis.
+=======
+
+  Parameters: {{{parameters}}}
+
+  Provide a comprehensive analysis that can help the administrator make data-driven decisions.
+  The insights should include potential issues and actionable recommendations for the barangay.
+  Ensure the output is well-structured and easy to understand.
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
 `,
 });
 

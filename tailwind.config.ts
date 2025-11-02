@@ -88,14 +88,18 @@ export default {
             height: '0',
           },
         },
+<<<<<<< HEAD
         'fade-in': {
           'from': { opacity: '0', transform: 'translateY(10px)' },
           'to': { opacity: '1', transform: 'translateY(0)' },
         },
+=======
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+<<<<<<< HEAD
         'fade-in': 'fade-in 0.5s ease-out forwards',
       },
     },
@@ -104,4 +108,10 @@ export default {
     require('tailwindcss-animate'),
     require('@tailwindcss/typography'),
   ],
+=======
+      },
+    },
+  },
+  plugins: [require('tailwindcss-animate')],
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
 } satisfies Config;

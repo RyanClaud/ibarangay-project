@@ -89,10 +89,17 @@ export function DocumentRequestClientPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+<<<<<<< HEAD
         <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 h-auto bg-muted/60 p-1 rounded-lg">
             <TabsTrigger value="All" className="data-[state=active]:tab-active-gradient rounded-md">All</TabsTrigger>
           {TABS.map(tab => (
             <TabsTrigger key={tab} value={tab} className="data-[state=active]:tab-active-gradient rounded-md">{tab}</TabsTrigger>
+=======
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5">
+            <TabsTrigger value="All">All</TabsTrigger>
+          {TABS.map(tab => (
+            <TabsTrigger key={tab} value={tab}>{tab}</TabsTrigger>
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
           ))}
         </TabsList>
       </Tabs>

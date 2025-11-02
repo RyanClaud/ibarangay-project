@@ -1,7 +1,10 @@
 'use client';
 
 import { RequestForm } from "@/components/requests/request-form";
+<<<<<<< HEAD
 import { Logo } from "@/components/logo";
+=======
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
 import { RequestHistory } from "@/components/requests/request-history";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { RequestsChart } from "@/components/dashboard/requests-chart";
@@ -28,7 +31,11 @@ const statusColors: Record<DocumentRequestStatus, string> = {
 
 
 export default function DashboardPage() {
+<<<<<<< HEAD
   const { currentUser, residents, documentRequests, isDataLoading, barangayConfig } = useAppContext();
+=======
+  const { currentUser, residents, documentRequests, isDataLoading } = useAppContext();
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
   const [paymentRequest, setPaymentRequest] = useState<DocumentRequest | null>(null);
   const router = useRouter();
 
@@ -89,6 +96,7 @@ export default function DashboardPage() {
         <div className="space-y-6">
             <h1 className="text-3xl font-bold font-headline tracking-tight">My Dashboard</h1>
             
+<<<<<<< HEAD
             <div className="grid gap-6 sm:grid-cols-2">
                 <div className="animate-fade-in [--animation-delay:100ms] opacity-0 p-0.5 rounded-lg bg-gradient-to-b from-primary/20 to-primary/5 hover:from-primary/30 transition-all">
                   <div className="rounded-md h-full w-full bg-card/80 backdrop-blur-sm">
@@ -110,6 +118,21 @@ export default function DashboardPage() {
                     />
                   </div>
                 </div>
+=======
+            <div className="grid gap-4 md:grid-cols-2">
+                <StatCard
+                    title="Total Requests"
+                    value={totalRequests.toString()}
+                    icon={FileText}
+                    description="All document requests you have made."
+                />
+                <StatCard
+                    title="Completed Requests"
+                    value={completedRequests.toString()}
+                    icon={CheckCircle}
+                    description="Documents that have been released to you."
+                />
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
             </div>
 
             <div>
@@ -118,9 +141,13 @@ export default function DashboardPage() {
                 Fill out the form below. Your information will be auto-filled.
                 </p>
             </div>
+<<<<<<< HEAD
             <div className="animate-fade-in [--animation-delay:300ms] opacity-0">
                 <RequestForm />
             </div>
+=======
+            <RequestForm />
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
     
             <div className="pt-4">
             <h2 className="text-2xl font-bold font-headline tracking-tight">My Request History</h2>
@@ -128,7 +155,12 @@ export default function DashboardPage() {
                 Track the status of your current and past document requests.
             </p>
             </div>
+<<<<<<< HEAD
             <div className="rounded-md border animate-fade-in [--animation-delay:400ms] opacity-0">
+=======
+            
+            <div className="rounded-md border">
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -146,8 +178,13 @@ export default function DashboardPage() {
                             <TableRow key={request.id}>
                             <TableCell className="font-medium">{request.trackingNumber}</TableCell>
                             <TableCell>{request.documentType}</TableCell>
+<<<<<<< HEAD
                             <TableCell className="hidden sm:table-cell">{new Date(request.requestDate).toLocaleDateString()}</TableCell>
                             <TableCell>{request.amount.toLocaleString('en-US', { style: 'currency', currency: 'PHP' })}</TableCell>
+=======
+                            <TableCell className="hidden sm:table-cell">{request.requestDate}</TableCell>
+                            <TableCell>₱{request.amount.toFixed(2)}</TableCell>
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
                             <TableCell>
                                 <Badge variant="outline" className={cn("font-semibold", statusColors[request.status])}>
                                 {request.status}
@@ -188,6 +225,7 @@ export default function DashboardPage() {
   if (user.role === "Barangay Captain") {
     return (
       <div className="space-y-6">
+<<<<<<< HEAD
         <div className="flex items-center gap-4">
           {barangayConfig?.sealLogoUrl && (
             <img src={barangayConfig.sealLogoUrl} alt="Barangay Seal" className="h-16 w-16 object-contain" />
@@ -225,6 +263,28 @@ export default function DashboardPage() {
               />
             </div>
           </div>
+=======
+        <h1 className="text-3xl font-bold font-headline tracking-tight">Captain's Dashboard</h1>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <StatCard
+            title="Total Residents"
+            value={safeResidents.length.toString()}
+            icon={Users}
+            description="The total number of registered residents."
+          />
+          <StatCard
+            title="Pending Requests"
+            value={pendingRequests.toString()}
+            icon={Hourglass}
+            description="Documents awaiting approval."
+          />
+           <StatCard
+            title="Approved Requests"
+            value={approvedRequests.toString()}
+            icon={FileText}
+            description="Total documents approved."
+          />
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <div className="col-span-full lg:col-span-4">
@@ -242,6 +302,7 @@ export default function DashboardPage() {
   if (user.role === "Secretary") {
     return (
       <div className="space-y-6">
+<<<<<<< HEAD
         <div className="flex items-center gap-4">
           {barangayConfig?.sealLogoUrl && (
             <img src={barangayConfig.sealLogoUrl} alt="Barangay Seal" className="h-16 w-16 object-contain" />
@@ -269,6 +330,22 @@ export default function DashboardPage() {
               />
             </div>
           </div>
+=======
+        <h1 className="text-3xl font-bold font-headline tracking-tight">Secretary's Dashboard</h1>
+        <div className="grid gap-4 md:grid-cols-2">
+           <StatCard
+            title="Total Residents"
+            value={safeResidents.length.toString()}
+            icon={Users}
+            description="The total number of registered residents."
+          />
+          <StatCard
+            title="Pending Requests"
+            value={pendingRequests.toString()}
+            icon={Hourglass}
+            description="New document requests to verify."
+          />
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
         </div>
         <div className="grid gap-4">
             <div className="col-span-full">
@@ -283,6 +360,7 @@ export default function DashboardPage() {
   if (user.role === "Treasurer") {
     return (
       <div className="space-y-6">
+<<<<<<< HEAD
         <div className="flex items-center gap-4">
           {barangayConfig?.sealLogoUrl && (
             <img src={barangayConfig.sealLogoUrl} alt="Barangay Seal" className="h-16 w-16 object-contain" />
@@ -310,6 +388,22 @@ export default function DashboardPage() {
               />
             </div>
           </div>
+=======
+        <h1 className="text-3xl font-bold font-headline tracking-tight">Treasurer's Dashboard</h1>
+        <div className="grid gap-4 md:grid-cols-2">
+          <StatCard
+            title="Total Revenue"
+            value={`₱${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            icon={CircleDollarSign}
+            description="Total revenue collected from documents."
+          />
+          <StatCard
+            title="Pending Payments"
+            value={pendingPayments.toString()}
+            icon={Banknote}
+            description="Approved requests awaiting payment."
+          />
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
         </div>
         <div className="text-center py-4">
             <Link href="/payments">
@@ -325,6 +419,7 @@ export default function DashboardPage() {
   // Admin Dashboard (Fallback)
   return (
     <div className="space-y-6">
+<<<<<<< HEAD
       <div className="flex items-center gap-4">
         {barangayConfig?.sealLogoUrl && (
           <img src={barangayConfig.sealLogoUrl} alt="Barangay Seal" className="h-16 w-16 object-contain" />
@@ -363,6 +458,29 @@ export default function DashboardPage() {
             />
           </div>
         </div>
+=======
+      <h1 className="text-3xl font-bold font-headline tracking-tight">Admin Dashboard</h1>
+      
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          title="Total Residents"
+          value={safeResidents.length.toString()}
+          icon={Users}
+          description="The total number of registered residents."
+        />
+        <StatCard
+          title="Approved Requests"
+          value={approvedRequests.toString()}
+          icon={FileText}
+          description="Total documents approved this month."
+        />
+        <StatCard
+          title="Total Revenue"
+          value={`₱${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          icon={CircleDollarSign}
+          description="Total revenue collected this month."
+        />
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

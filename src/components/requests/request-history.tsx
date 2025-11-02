@@ -31,7 +31,11 @@ export function RequestHistory({ data }: RequestHistoryProps) {
       <div className="rounded-md border">
         <Table>
           <TableHeader>
+<<<<<<< HEAD
             <TableRow className="bg-gradient-to-r from-[hsl(var(--gradient-start))] to-[hsl(var(--gradient-end))]">
+=======
+            <TableRow>
+>>>>>>> 6c232461fb2b050965cc4b24accfb5c51a747356
               <TableHead>Tracking No.</TableHead>
               <TableHead>Document</TableHead>
               <TableHead className="hidden sm:table-cell">Date</TableHead>
